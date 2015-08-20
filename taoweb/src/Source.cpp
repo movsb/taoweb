@@ -140,6 +140,7 @@ public:
 					continue;
 				}
 				else {
+					std::cout << _verb << " " << _uri << " " << _version << std::endl;
 					state = state_t::a_version;
 					reusec = true;
 					continue;
@@ -271,7 +272,7 @@ std::string cur_dir() {
 
 void error_response(SOCKET& fd, int code) {
 	const char* err404 =
-		"HTTP/1.1 404 Not Found\t\n"
+		"HTTP/1.1 404 Not Found\r\n"
 		"Server: taoweb\r\n"
 		"\r\n"
 		"<html>\n"
@@ -292,34 +293,50 @@ bool respond(SOCKET& fd, http_header_t& header){
 	auto cd = cur_dir();
 	auto file = cd + header._uri_decoded;
 
-	FILE* fp = fopen(file.c_str(), "rb");
-	int file_size = 0;
-
-	if(fp == nullptr){
+	HANDLE h_file = CreateFile(file.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+	if(h_file == INVALID_HANDLE_VALUE){
 		error_response(fd, 400);
 		return false;
 	}
 
-	fseek(fp, 0, SEEK_END);
-	file_size = ftell(fp);
-	fseek(fp, 0, SEEK_SET);
+	BY_HANDLE_FILE_INFORMATION file_info = { 0 };
+	GetFileInformationByHandle(h_file, &file_info);
+
+	DWORD file_size = file_info.nFileSizeLow;
+	char etag[19];
+	sprintf(etag, "\"%08X%08X\"", file_info.nFileIndexHigh, file_info.nFileIndexLow);
+
+	if (header._header_lines.count("If-None-Match") && header._header_lines["If-None-Match"] == etag) {
+		CloseHandle(h_file);
+
+		const char* err304 =
+			"HTTP/1.1 304 Not Modified\r\n"
+			"Server: taoweb\r\n"
+			"\r\n";
+
+		send(fd, err304, strlen(err304), 0);
+		closesocket(fd);
+		return true;
+	}
 
 	const char* err200 =
 		"HTTP/1.1 200 OK\r\n"
 		"Server: taoweb\r\n"
+		"Content-Type: text/plain\r\n"
 		"Content-Length: %d\r\n"
+		"ETag: %s\r\n"
 		"\r\n";
 
 	char buf[10240];
-	sprintf(buf, err200, file_size);
+	DWORD n_read;
+	sprintf(buf, err200, file_size, etag);
 	send(fd, buf, strlen(buf), 0);
 
-	int n;
-	while((n = fread(buf, 1, sizeof(buf), fp)) > 0) {
-		send(fd, buf, n, 0);
+	while (ReadFile(h_file, buf, sizeof(buf), &n_read, nullptr) && n_read > 0){
+		send(fd, buf, (int)n_read, 0);
 	}
 
-	fclose(fp);
+	CloseHandle(h_file);
 	closesocket(fd);
 
 	return true;
