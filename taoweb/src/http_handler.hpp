@@ -8,7 +8,6 @@
 #include <WinSock2.h>
 #include <windows.h>
 
-#include "uri_helper.hpp"
 #include "file_system.hpp"
 
 #include "socket.hpp"
@@ -75,7 +74,7 @@ namespace taoweb {
                     case state_t::i_uri:
                         if (c > 32 && c < 128) {
                             if (c == '?') {
-                                taoweb::uri_helper::decode_uri(_uri, &_uri_decoded);
+                                taoweb::http::decode_uri(_uri, &_uri_decoded);
                                 state = state_t::i_query;
                                 continue;
                             }
@@ -85,7 +84,7 @@ namespace taoweb {
                             }
                         }
                         else {
-                            taoweb::uri_helper::decode_uri(_uri, &_uri_decoded);
+                            taoweb::http::decode_uri(_uri, &_uri_decoded);
                             state = state_t::a_uri;
                             reusec = true;
                             continue;
@@ -298,7 +297,7 @@ namespace taoweb {
                         std::string new_uri = _header._uri_decoded + "/";
                         ss << "HTTP/1.1 301 Moved Permanently\r\n"
                             << "Server: taoweb/0.0\r\n"
-                            << "Date: " << http_gmtime() << "\r\n"
+                            << "Date: " << gmtime() << "\r\n"
                             << "Location: " <<  new_uri << "\r\n"
                             << "\r\n";
 
@@ -326,7 +325,7 @@ namespace taoweb {
 
                 std::string err200 = "HTTP/1.1 200 OK\r\n";
                 err200 += "Server: taoweb/0.0\r\n";
-                err200 += "Date: " + http_gmtime() + "\r\n";
+                err200 += "Date: " + gmtime() + "\r\n";
                 err200 += "Content-Length: %d\r\n";
                 err200 += "ETag: %s\r\n";
                 err200 += "\r\n";

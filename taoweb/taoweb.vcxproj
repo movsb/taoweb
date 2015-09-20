@@ -87,13 +87,11 @@
     <ClCompile Include="src\Source.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\chrono.hpp" />
     <ClInclude Include="src\file_system.hpp" />
     <ClInclude Include="src\http_base.hpp" />
     <ClInclude Include="src\http_handler.hpp" />
     <ClInclude Include="src\socket.hpp" />
     <ClInclude Include="src\threading.hpp" />
-    <ClInclude Include="src\uri_helper.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

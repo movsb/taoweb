@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstring>
+#include <ctime>
 
 #include <string>
 #include <sstream>
@@ -8,10 +9,23 @@
 #include <WinSock2.h>
 #include <windows.h>
 
-#include "chrono.hpp"
-
 namespace taoweb {
     namespace http {
+        std::string gmtime() {
+            time_t now = time(nullptr);
+            tm* gmt = ::gmtime(&now);
+
+            // http://en.cppreference.com/w/c/chrono/strftime
+            // e.g.: Sat, 22 Aug 2015 11:48:50 GMT
+            //       5+   3+4+   5+   9+       3   = 29
+            const char* fmt = "%a, %d %b %Y %H:%M:%S GMT";
+            char tstr[30];
+
+            strftime(tstr, sizeof(tstr), fmt, gmt);
+
+            return tstr;
+        }
+
         class error_page_t {
         protected:
             struct one_page_t {
@@ -60,7 +74,7 @@ namespace taoweb {
                 std::stringstream ss;
                 ss << page.header << "\r\n"
                     << "Server: taoweb/0.0\r\n"
-                    << "Date: " << taoweb::http_gmtime() << "\r\n"
+                    << "Date: " << gmtime() << "\r\n"
                     << "\r\n";
 
                 auto& header_str = ss.str();
@@ -72,5 +86,55 @@ namespace taoweb {
             const one_page_t*   _pages;
             int                 _count;
         };
+
+        /*
+        A-Z a-z 0-9
+        - . _ ~ : / ? # [ ] @ ! $ & ' ( ) * + , ; =
+        no space
+        */
+        bool decode_uri(const std::string& uri, std::string* result) {
+            if (uri.size() == 0 || !result) return false;
+
+            auto p = uri.c_str();
+            auto q = p + uri.size();
+
+            for (; p < q;) {
+                auto c = *p;
+                if (c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || strchr("-._~:/?#[]@!$&'()*+,;=", c)) {
+                    *result += c;
+                    p++;
+                }
+                else if (c == '%') {
+                    if (p + 1 < q && p[1] == '%') {
+                        *result += '%';
+                        p++;
+                    }
+
+                    if (p + 2 < q) {
+                        unsigned char v = 0;
+                        p++;
+                        if (*p >= '0' && *p <= '9') v = *p - '0';
+                        else if (*p >= 'A' && *p <= 'F') v = *p - 'A' + 10;
+                        else return false;
+                        p++;
+                        v = v * 16;
+                        if (*p >= '0' && *p <= '9') v += *p - '0';
+                        else if (*p >= 'A' && *p <= 'F') v += *p - 'A' + 10;
+                        else return false;
+
+                        p++;
+                        *result += v;
+                    }
+                    else {
+                        return false;
+                    }
+                }
+                else {
+                    return false;
+                }
+            }
+            return true;
+        }
+
     }
 }
