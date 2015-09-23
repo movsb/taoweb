@@ -29,7 +29,7 @@ namespace taoweb {
         }
 
         std::string cur_dir() {
-            return R"(G:\doc\git)";
+            return R"(C:\Users\Tao\Desktop\wwwroot)";
         }
 
         file_type file_attr(const char* file) {
@@ -41,7 +41,7 @@ namespace taoweb {
             if (dw_attr & FILE_ATTRIBUTE_DIRECTORY)
                 return file_type::directory;
 
-            if (dw_attr & FILE_ATTRIBUTE_NORMAL)
+            if (dw_attr & FILE_ATTRIBUTE_NORMAL || dw_attr & FILE_ATTRIBUTE_ARCHIVE)
                 return file_type::file;
 
             return file_type::error;

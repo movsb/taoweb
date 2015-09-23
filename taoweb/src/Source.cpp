@@ -19,35 +19,39 @@
 taoweb::http::error_page_t error_page;
 
 
+static int                                  threads_created;
+static taoweb::lock_count                   threads;
+static taoweb::lock_queue<taoweb::client_t> clients;
 
-unsigned int __stdcall worker_thread(void* ud) {
-    auto& queue = *reinterpret_cast<taoweb::client_queue*>(ud);
-    taoweb::client_t* c = nullptr;
+unsigned int __stdcall handler_thread(void* ud) {
+    taoweb::client_t client;
+    while ((true)) {
+        threads.inc();
+        client = clients.pop();
+        threads.dec();
 
-    while (c = &queue.pop()) {
+        // handler here
         taoweb::http::http_header_t header;
-        header.read_headers(c->fd);
-
+        header.read_headers(client.fd);
         if (!header._header_lines.size())
             continue;
 
-        taoweb::http::static_http_handler_t handler(*c, header);
+        taoweb::http::static_http_handler_t handler(client, header);
         handler.handle();
         if (handler.keep_alive()) {
-            queue.push(*c);
+            clients.push(client);
         }
     }
 
     return 0;
 }
 
-void create_worker_threads(taoweb::client_queue& queue) {
-    SYSTEM_INFO si;
-    ::GetSystemInfo(&si);
-
-    DWORD n_threads = si.dwNumberOfProcessors * 2;
-    for (int i = 0; i < (int)n_threads; i++){
-        _beginthreadex(nullptr, 0, worker_thread, &queue, 0, nullptr);
+void create_worker_thread(taoweb::client_t& client) {
+    clients.push(client);
+    if (threads.size() < 3) {
+        HANDLE thr = (HANDLE)_beginthreadex(NULL, 0, handler_thread, NULL, 0, NULL);
+        CloseHandle(thr);
+        std::cout << "threads created: " << threads_created << ", threads spare: " << threads.size() << std::endl;
     }
 }
 
@@ -55,19 +59,15 @@ int main()
 {
     using namespace taoweb;
 
-    client_queue queue;
-    create_worker_threads(queue);
-
     win_sock _wsa;
 
-    socket_server server("127.0.0.1", 80, 128);
+    socket_server server("127.0.0.1", 8080, 64);
 
     server.start();
 
     client_t client;
     while (server.accept(&client)) {
-        queue.push(client);
-        std::cout << "push\n";
+        create_worker_thread(client);
     }
 
 	return 0;

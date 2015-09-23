@@ -288,7 +288,7 @@ namespace taoweb {
                 file_system::file_type file_type;
                 file_type = taoweb::file_system::file_attr(file.c_str());
                 if (file_type == file_system::file_type::error) {
-                    error_page.output(_client.fd, 403);
+                    error_page.output(_client.fd, 404);
                     return;
                 }
                 else if (file_type == file_system::file_type::directory) {
@@ -327,6 +327,7 @@ namespace taoweb {
                 err200 += "Server: taoweb/0.0\r\n";
                 err200 += "Date: " + gmtime() + "\r\n";
                 err200 += "Content-Length: %d\r\n";
+                err200 += "Content-Type: text/html\r\n";
                 err200 += "ETag: %s\r\n";
                 err200 += "\r\n";
 
