@@ -9,6 +9,8 @@
 #include <WinSock2.h>
 #include <windows.h>
 
+#include "file_system.hpp"
+
 namespace taoweb {
     namespace http {
         std::string gmtime() {
@@ -74,6 +76,7 @@ namespace taoweb {
                 std::stringstream ss;
                 ss << page.header << "\r\n"
                     << "Server: taoweb/0.0\r\n"
+                    << "Connection: close\r\n"
                     << "Date: " << gmtime() << "\r\n"
                     << "\r\n";
 
@@ -134,6 +137,51 @@ namespace taoweb {
                 }
             }
             return true;
+        }
+
+        std::string mime(const std::string& file) {
+            static struct {
+                const char* mime;
+                const char* exts;
+            } known_mimes[] = {
+                {"text/html",           "html\x00htm\x00shtml\x00"},
+                {"text/css",            "css\x00"},
+                {"text/xml",            "xml\x00"},
+                {"text/javascript",     "js\x00"},
+
+                {"text/plain",          "txt\x00ini\x00"},
+                {"text/plain",          "c\x00cc\x00\x00cpp\x00cxx\x00h\x00hpp\x00"},
+                {"text/plain",          "php\x00sh\x00"},
+
+                {"image/gif",           "gif\x00"},
+                {"image/jpeg",          "jpg\x00jpeg\x00"},
+                {"image/png",           "png\x00"},
+                {"image/x-icon",        "ico\x00"},
+                {"image/x-ms-bmp",      "bmp\x00"},
+
+                {"application/json",    "json\x00"},
+            };
+
+            const char* octet_stream = "application/octet-stream";
+            const int count = sizeof(known_mimes) / sizeof(known_mimes[0]);
+
+            auto ext = taoweb::file_system::ext(file);
+            std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+
+            if(ext.size()) {
+                auto ad = ext.c_str() + 1; // after dot
+                for(int i = 0; i < count; i++) {
+                    const char* p = known_mimes[i].exts;
+                    while(*p != '\0') {
+                        if(strcmp(ad, p) == 0) // found!
+                            return known_mimes[i].mime;
+                        while(*p++) // skip to next
+                            ;
+                    }
+                }
+            }
+
+            return octet_stream;
         }
 
     }

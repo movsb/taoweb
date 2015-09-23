@@ -16,6 +16,30 @@ namespace taoweb {
             access_denied,
         };
 
+        std::string ext(const std::string& file) {
+            // 文件如果有扩展名，其小数点的两边必须有其它字符才算
+            // file.exe 算，file.ext. 不算，.git 不算
+
+            auto fs = file.find_last_of('/');
+            auto bs = file.find_last_of('\\');
+            auto d = file.find_last_of('.');
+
+            auto sep = std::string::npos;
+            if(fs != std::string::npos)
+                sep = fs;
+            if(bs != std::string::npos && bs > fs)
+                sep = bs;
+
+            if(d != std::string::npos // 有小数点
+                && d != file.size() - 1 // 不是最后一个字符
+                && (sep == std::string::npos || d > sep + 1) // 如果存在分隔符，那么一定不是分隔符后面的第1个字符
+                )
+            {
+                return file.c_str() + d;
+            }
+            return "";
+        }
+
         bool file_exists(const char* file) {
             return !!::PathFileExists(file);
         }

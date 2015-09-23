@@ -261,7 +261,6 @@ namespace taoweb {
         public:
             static_http_handler_t(client_t& client, http_header_t& header)
                 : http_handler_t(client, header)
-                , _keep_alive(false)
             {}
 
             virtual ~static_http_handler_t() {
@@ -269,13 +268,7 @@ namespace taoweb {
             }
 
         public:
-            bool keep_alive() {
-                return _keep_alive;
-            }
-        public:
             virtual void handle() {
-                _keep_alive = false;
-
                 using namespace taoweb;
 
                 extern http::error_page_t error_page;
@@ -327,7 +320,8 @@ namespace taoweb {
                 err200 += "Server: taoweb/0.0\r\n";
                 err200 += "Date: " + gmtime() + "\r\n";
                 err200 += "Content-Length: %d\r\n";
-                err200 += "Content-Type: text/html\r\n";
+                err200 += "Connection: close\r\n";
+                err200 += "Content-Type: " + http::mime(file) + "\r\n";
                 err200 += "ETag: %s\r\n";
                 err200 += "\r\n";
 
@@ -344,12 +338,9 @@ namespace taoweb {
 
                 fobj.close();
 
-                _keep_alive = _header._header_lines.count("Connection") && _header._header_lines["Connection"] == "keep-alive";
-                if(!_keep_alive) ::closesocket(_client.fd);
+                ::closesocket(_client.fd);
                 return;
             }
-        protected:
-            bool _keep_alive;
         };
     }
 }

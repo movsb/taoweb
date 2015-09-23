@@ -38,9 +38,6 @@ unsigned int __stdcall handler_thread(void* ud) {
 
         taoweb::http::static_http_handler_t handler(client, header);
         handler.handle();
-        if (handler.keep_alive()) {
-            clients.push(client);
-        }
     }
 
     return 0;
