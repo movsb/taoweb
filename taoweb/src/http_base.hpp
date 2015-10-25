@@ -2,9 +2,11 @@
 
 #include <cstring>
 #include <ctime>
+#include <cctype>
 
 #include <string>
 #include <sstream>
+#include <map>
 
 #include <WinSock2.h>
 #include <windows.h>
@@ -103,8 +105,12 @@ namespace taoweb {
 
             for (; p < q;) {
                 auto c = *p;
-                if (c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || strchr("-._~:/?#[]@!$&'()*+,;=", c)) {
+                if (c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || strchr("-._~:/?#[]@!$&'()*,;=", c)) {
                     *result += c;
+                    p++;
+                }
+                else if(c == '+') {
+                    *result += ' ';
                     p++;
                 }
                 else if (c == '%') {
@@ -136,6 +142,178 @@ namespace taoweb {
                     return false;
                 }
             }
+            return true;
+        }
+
+        bool decode_query(const std::string& query, std::map<std::string, std::string>* queries) {
+            enum class token_type {
+                error,
+                ident,
+                assign,
+                value,
+                amp,
+                eof,
+            };
+
+            class tokenizer_t {
+            protected:
+                enum class cond_t {
+                    init,
+                    key,
+                    assign,
+                    value,
+                };
+            public:
+                token_type next() {
+                    _tk.clear();
+                    switch(_cond)
+                    {
+                    case cond_t::init:
+                        if(::isalpha(*_p)) {
+                            while(::isalpha(*_p)) {
+                                _tk += *_p;
+                                _p++;
+                            }
+                            _cond = cond_t::key;
+                            return token_type::ident;
+                        }
+                        else if(*_p == '\0') {
+                            return token_type::eof;
+                        }
+
+                        return token_type::error;
+                    case cond_t::key:
+                        if(*_p == '=') {
+                            _p++;
+                            _cond = cond_t::assign;
+                            return token_type::assign;
+                        }
+                        else if(*_p == '&') {
+                            _p++;
+                            _cond = cond_t::init;
+                            return token_type::amp;
+                        }
+                        else if(*_p == '\0') {
+                            return token_type::eof;
+                        }
+                        return token_type::error;
+                    case cond_t::assign:
+                        if(*_p == '&') {
+                            _p++;
+                            _cond = cond_t::init;
+                            return token_type::amp;
+                        }
+                        else if(*_p == '\0') {
+                            return token_type::eof;
+                        }
+
+                        while(::isalnum(*_p) || (*_p != 0 && ::strchr("%:$()_-+.", *_p))) {
+                            _tk += *_p;
+                            _p++;
+                        }
+
+                        if(_tk.size() > 0) {
+                            _cond = cond_t::value;
+                            return token_type::value;
+                        }
+
+                        return token_type::error;
+                    case cond_t::value:
+                        if(*_p == '&') {
+                            _p++;
+                            _cond = cond_t::init;
+                            return token_type::amp;
+                        }
+                        else if(*_p == '\0') {
+                            _cond = cond_t::init;
+                            return token_type::eof;
+                        }
+
+                        return token_type::error;
+                    default:
+                        return token_type::error;
+                    }
+                }
+
+                void feed(const char* s) {
+                    _s = s;
+                    _p = _s;
+                    _cond = cond_t::init;
+                }
+
+                const std::string& tk() {
+                    return _tk;
+                }
+            protected:
+                void _skip_ws() {
+                    while(::isspace(*_p))
+                        _p++;
+                }
+
+            protected:
+                const char* _s;
+                const char* _p;
+                std::string _tk;
+                cond_t      _cond;
+            };
+
+            auto& q = *queries;
+            tokenizer_t tkr;
+            tkr.feed(query.c_str());
+
+            token_type tt;
+            bool reuse = false;
+            for(;;) {
+                if(!reuse)
+                    tt = tkr.next();
+                reuse = false;
+
+                if(tt == token_type::ident) {
+                    auto key = tkr.tk();
+                    tt = tkr.next();
+                    if(tt == token_type::assign) {
+                        tt = tkr.next();
+                        if(tt == token_type::value) {
+                            std::string val;
+                            taoweb::http::decode_uri(tkr.tk(), &val);
+                            q[key] = val;
+                            tt = tkr.next();
+                            if(tt == token_type::eof) {
+                                break;
+                            }
+                            if(tt == token_type::amp) {
+                                tt = tkr.next();
+                            }
+                            reuse = true;
+                            continue;
+                        }
+                        else {
+                            if(tt == token_type::eof) {
+                                q[key] = "";
+                                break;
+                            }
+                            if(tt == token_type::amp) {
+                                q[key] = "";
+                                tt = tkr.next();
+                            }
+                            reuse = true;
+                            continue;
+                        }
+                    }
+                    q[key] = "";
+                    if(tt == token_type::eof) {
+                        break;
+                    }
+                    if(tt == token_type::amp) {
+                        tt = tkr.next();
+                    }
+                    reuse = true;
+                    continue;
+                }
+
+                break;
+            }
+
             return true;
         }
 

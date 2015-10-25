@@ -16,6 +16,17 @@
 
 namespace taoweb {
     namespace http {
+        const std::string query_field(std::map<std::string, std::string>& _queries, const char* field, const char* def = "") {
+            if(_queries.count(field)) {
+                return _queries[field];
+            }
+
+            if(def == nullptr)
+                def = "";
+
+            return def;
+        }
+
         class http_header_t {
         public:
             void read_headers(SOCKET& fd) {
@@ -95,6 +106,8 @@ namespace taoweb {
                             continue;
                         }
                         else {
+                            _queries.clear();
+                            taoweb::http::decode_query(_query, &_queries);
                             state = state_t::a_query;
                             reusec = true;
                             continue;
@@ -231,6 +244,7 @@ namespace taoweb {
             std::string _uri;
             std::string _uri_decoded;
             std::string _query;
+            std::map<std::string, std::string> _queries;
             std::string _version;
 
             std::vector<unsigned char> _headers;
@@ -267,6 +281,12 @@ namespace taoweb {
 
             }
 
+            void set_root(const std::string& root) {
+                _root = root;
+            }
+
+        private:
+            std::string _root;
         public:
             virtual void handle() {
                 using namespace taoweb;
@@ -275,7 +295,7 @@ namespace taoweb {
 
                 _restart: // TODO
 
-                auto cd = taoweb::file_system::cur_dir();
+                auto cd = _root;
                 auto file = cd + _header._uri_decoded;
 
                 file_system::file_type file_type;

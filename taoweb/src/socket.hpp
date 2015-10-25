@@ -2,7 +2,11 @@
 
 #include <stdint.h>
 
+#include <WinSock2.h>
 #include <windows.h>
+
+#include "threading.hpp"
+
 
 namespace taoweb {
     class win_sock {

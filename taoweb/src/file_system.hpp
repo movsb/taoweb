@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdlib>
+#include <cstdint>
 
 #include <string>
 
@@ -53,7 +54,7 @@ namespace taoweb {
         }
 
         std::string cur_dir() {
-            return R"(C:\Users\Tao\Desktop\wwwroot)";
+            return R"(G:\nesdev)";
         }
 
         file_type file_attr(const char* file) {

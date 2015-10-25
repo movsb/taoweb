@@ -1,5 +1,7 @@
 #pragma once
 
+#include <queue>
+
 #include <windows.h>
 
 namespace taoweb {
