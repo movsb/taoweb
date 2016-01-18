@@ -4,3 +4,5 @@
 /output/
 *.suo
 *.user
+/lua/
+

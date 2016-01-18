@@ -12,6 +12,7 @@
 
 #include "socket.hpp"
 #include "http_base.hpp"
+#include "charset.h"
 
 
 namespace taoweb {
@@ -128,7 +129,7 @@ namespace taoweb {
                             continue;
                         }
                         else {
-                            std::cout << _verb << " " << _uri_decoded << " " << _version << std::endl;
+                            std::cout << _verb << " " << charset::e2a(_uri_decoded) << " " << _version << std::endl;
                             state = state_t::a_version;
                             reusec = true;
                             continue;
@@ -293,10 +294,8 @@ namespace taoweb {
 
                 extern http::error_page_t error_page;
 
-                _restart: // TODO
-
                 auto cd = _root;
-                auto file = cd + _header._uri_decoded;
+                auto file = cd + charset::e2a(_header._uri_decoded);
 
                 file_system::file_type file_type;
                 file_type = taoweb::file_system::file_attr(file.c_str());
@@ -321,8 +320,64 @@ namespace taoweb {
                         return;
                     }
 
-                    _header._uri_decoded += "index.html";
-                    goto _restart;
+                    //_header._uri_decoded += "index.html";
+                    //goto _restart;
+                    // ¿ªÆô autoindex
+                    std::vector<std::string> files;
+                    file_system::get_directory_files(file.c_str(), &files);
+                    
+                    std::stringstream ss;
+                    ss << "HTTP/1.1 200 OK\r\n"
+                        << "Content-Type: text/html\r\n"
+                        << "\r\n";
+                    ss << "<!doctype html>\n"
+                        "<html>\n"
+                        "<head>\n"
+                        "<meta charset=\"utf-8\" />\n"
+                        "<title>" "Index of " << charset::a2e(file) << "</title>\n"
+                        "<link rel=\"stylesheet\" type=\"text/css\" href=\"/common/style.css\" />"
+                        "</head>\n"
+                        "<body>\n"
+                        "<table>\n";
+
+                    /*auto encode = [](const std::string& file) {
+                        char buf[7];
+                        std::string ret;
+                        const unsigned char* p = (const unsigned char*)file.c_str();
+                        for (; *p;) {
+                            if (*p <= 32) {
+                                sprintf(buf, "%%%02X", *p);
+                                ret += buf;
+                                ++p;
+                            }
+                            else if (*p > 32 && *p < 128) {
+                                ret += *p;
+                                ++p;
+                            }
+                            else if (*p >= 128) {
+                                sprintf(buf, "%%%02X%%%02X", p[0], p[1]);
+                                ret += buf;
+                                p += 2;
+                            }
+                        }
+
+                        return ret;
+                    };*/
+
+                    for (auto& f : files) {
+                        ss << "<tr>\n" "<td>" 
+                            "<a href=\"" << charset::a2e(f) << "\">" << charset::a2e(f) << "</a>"
+                            "</td></tr>\n";
+                    }
+
+                    ss << "</table>\n"
+                        "</body>\n"
+                        "</html>\n";
+
+                    auto& str = ss.str();
+                    ::send(_client.fd, str.c_str(), str.size(), 0);
+                    ::closesocket(_client.fd);
+                    return;
                 }
 
                 file_system::file_object_t fobj(file.c_str());

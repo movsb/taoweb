@@ -37,6 +37,7 @@ unsigned int __stdcall handler_thread(void* ud) {
             continue;
 
         taoweb::http::static_http_handler_t handler(client, header);
+        handler.set_root(R"(D:\YangTao\xldocs)");
         handler.handle();
     }
 
@@ -45,10 +46,10 @@ unsigned int __stdcall handler_thread(void* ud) {
 
 void create_worker_thread(taoweb::client_t& client) {
     clients.push(client);
-    if (threads.size() < 3) {
+    if (threads.size() == 0) {
         HANDLE thr = (HANDLE)_beginthreadex(NULL, 0, handler_thread, NULL, 0, NULL);
         CloseHandle(thr);
-        std::cout << "threads created: " << threads_created << ", threads spare: " << threads.size() << std::endl;
+        //std::cout << "threads created: " << threads_created << ", threads spare: " << threads.size() << std::endl;
     }
 }
 

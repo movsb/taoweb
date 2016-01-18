@@ -54,7 +54,7 @@ namespace taoweb {
         }
 
         std::string cur_dir() {
-            return R"(G:\nesdev)";
+            return exe_dir();
         }
 
         file_type file_attr(const char* file) {
@@ -70,6 +70,33 @@ namespace taoweb {
                 return file_type::file;
 
             return file_type::error;
+        }
+
+        void get_directory_files(const char* base, std::vector<std::string>* files) {
+            std::vector<std::string>& matches = *files;
+            bool has_match = false;
+
+            std::string folder(base);
+            if (folder.back() != '/' && folder.back() != '\\')
+                folder.append(1, '\\');
+
+            WIN32_FIND_DATA wfd;
+            std::string pattern = folder + "*.*";
+            auto is_64bit = []() {
+                BOOL b64;
+                return IsWow64Process(GetCurrentProcess(), &b64)
+                    && b64 != FALSE;
+            };
+            if (is_64bit()) ::Wow64DisableWow64FsRedirection(nullptr);
+            HANDLE hfind = ::FindFirstFile(pattern.c_str(), &wfd);
+            if (hfind != INVALID_HANDLE_VALUE) {
+                do {
+                    std::string file = wfd.cFileName;
+                    matches.push_back(std::move(file));
+                } while (::FindNextFile(hfind, &wfd));
+                ::FindClose(hfind);
+            }
+            if (is_64bit()) ::Wow64EnableWow64FsRedirection(TRUE);
         }
 
         std::string simplify_path(const char* path) {
