@@ -1,0 +1,2 @@
+print('onload.lua')
+

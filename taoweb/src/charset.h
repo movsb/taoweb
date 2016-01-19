@@ -2,6 +2,8 @@
 
 #include <string>
 
+#include <windows.h>
+
 /*
 	https://github.com/movsb/taoexec/blob/master/src/charset.h
 
@@ -49,4 +51,6 @@ namespace charset {
 		return e2a(src);
 	}
 #endif
+
+    int luaopen_charset(lua_State* L);
 }
