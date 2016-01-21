@@ -120,6 +120,7 @@
     <ClCompile Include="..\lua\lvm.c" />
     <ClCompile Include="..\lua\lzio.c" />
     <ClCompile Include="src\charset.cpp" />
+    <ClCompile Include="src\file_system.cpp" />
     <ClCompile Include="src\Source.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -150,7 +151,7 @@
     <ClInclude Include="..\lua\lvm.h" />
     <ClInclude Include="..\lua\lzio.h" />
     <ClInclude Include="src\charset.h" />
-    <ClInclude Include="src\file_system.hpp" />
+    <ClInclude Include="src\file_system.h" />
     <ClInclude Include="src\http_base.hpp" />
     <ClInclude Include="src\http_handler.hpp" />
     <ClInclude Include="src\socket.hpp" />

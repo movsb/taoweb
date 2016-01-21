@@ -85,18 +85,20 @@ namespace charset {
         return 1;
     }
 
-    static const luaL_Reg charsetlib[] = {
-        { "a2u", charset_a2u },
-        { "u2a", charset_u2a },
-        { "e2u", charset_e2u },
-        { "u2e", charset_u2e },
-        { "a2e", charset_a2e },
-        { "e2a", charset_e2a },
-        {NULL, NULL}
-    };
 
     int luaopen_charset(lua_State* L) {
+        static const luaL_Reg charsetlib[] = {
+            { "a2u", charset_a2u },
+            { "u2a", charset_u2a },
+            { "e2u", charset_e2u },
+            { "u2e", charset_u2e },
+            { "a2e", charset_a2e },
+            { "e2a", charset_e2a },
+            { NULL, NULL }
+        };
+
         luaL_newlib(L, charsetlib);
+
         return 1;
     }
 }

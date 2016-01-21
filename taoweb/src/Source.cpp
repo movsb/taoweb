@@ -1,10 +1,12 @@
 #include <lua/lua.hpp>
 
 #include "charset.h"
+#include "file_system.h"
 
 static void openlibs(lua_State* L) {
     static const luaL_Reg loadedlibs[] = {
-        { "charset", charset::luaopen_charset },
+        { "charset",    charset::luaopen_charset },
+        { "filesystem", file_system::luaopen_filesystem },
     };
 
     for (auto& lib : loadedlibs) {
