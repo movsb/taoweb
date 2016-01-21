@@ -1,5 +1,7 @@
 #include <lua/lua.hpp>
 
+#include <memory>
+
 #include "charset.h"
 
 #include "file_system.h"
@@ -218,6 +220,91 @@ namespace file_system {
     }
 
     //////////////////////////////////////////////////////////////////////////
+
+    static const char* const fileobject_metatable = "filesystem_fileobject";
+
+    struct fileobject_t {
+        FILE*           fp;
+        unsigned int    size;
+    };
+
+    static int filesystem_open(lua_State* L) {
+        auto fn = luaL_checkstring(L, 1);
+        auto mode = luaL_checkstring(L, 2);
+
+        FILE* fp = ::fopen(charset::e2a(fn).c_str(), mode);
+        if (!fp) return 0;
+
+        fileobject_t* fo = reinterpret_cast<fileobject_t*>(lua_newuserdata(L, sizeof(fileobject_t)));
+        fo->fp = fp;
+        ::fseek(fp, 0, SEEK_END);
+        fo->size = ::ftell(fp);
+        ::rewind(fp);
+
+        luaL_setmetatable(L, fileobject_metatable);
+
+        return 1;
+    }
+
+    static inline fileobject_t* check_fileobject(lua_State* L) {
+        return reinterpret_cast<fileobject_t*>(luaL_checkudata(L, 1, fileobject_metatable));
+    }
+
+    static int fileobject_tostring(lua_State* L) {
+        auto fo = check_fileobject(L);
+        lua_pushstring(L, "fileobject");
+        return 1;
+    }
+
+    static int fileobject_gc(lua_State* L) {
+        auto fo = check_fileobject(L);
+        return 0;
+    }
+
+    static int fileobject_size(lua_State* L) {
+        auto fo = check_fileobject(L);
+        lua_pushinteger(L, fo->size);
+        return 1;
+    }
+
+    static int fileobject_close(lua_State* L) {
+        auto fo = check_fileobject(L);
+        ::fclose(fo->fp);
+        return 0;
+    }
+
+    static int fileobject_read(lua_State* L) {
+        auto fo = check_fileobject(L);
+        int size = (int)luaL_checkinteger(L, 2);
+        std::unique_ptr<unsigned char> data(new unsigned char[size]);
+        if (::fread(data.get(), 1, size, fo->fp) == size) {
+            lua_pushlstring(L, reinterpret_cast<char*>(data.get()), size);
+            return 1;
+        }
+        else {
+            return 0;
+        }
+    }
+
+    static int fileobject_write(lua_State* L) {
+        auto fo = check_fileobject(L);
+        int size;
+        auto str = luaL_checklstring(L, 2, (size_t*)&size);
+
+        lua_pushboolean(L, ::fwrite(str, 1, size, fo->fp) == size);
+        return 1;
+    }
+
+    static int fileobject_seek(lua_State* L) {
+        auto fo = check_fileobject(L);
+        int offset = (int)luaL_checkinteger(L, 2);
+        int start = (int)luaL_checkinteger(L, 3);
+
+        lua_pushboolean(L, ::fseek(fo->fp, offset, start) == 0);
+        return 1;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
     int luaopen_filesystem(lua_State* L) {
         static const luaL_Reg filesystemlib[] = {
             { "ext",        filesystem_ext},
@@ -226,12 +313,30 @@ namespace file_system {
             { "type",       filesystem_type},
             { "simplify",   filesystem_simplify_path},
             { "list",       filesystem_list},
+
+            { "open",       filesystem_open },
+            {nullptr, nullptr}
+        };
+
+        static const luaL_Reg fileobjectlib[] = {
+            { "__tostring", fileobject_tostring },
+            { "__gc",       fileobject_gc },
+            { "read",       fileobject_read },
+            { "write",      fileobject_write },
+            { "seek",       fileobject_seek },
+            { "size",       fileobject_size },
+            { "close",      fileobject_close },
             {nullptr, nullptr}
         };
 
         luaL_newlib(L, filesystemlib);
 
+        luaL_newmetatable(L, fileobject_metatable);
+        lua_pushvalue(L, -1);
+        lua_setfield(L, -2, "__index");
+        luaL_setfuncs(L, fileobjectlib, 0);
+        lua_pop(L, 1);
+
         return 1;
     }
-
 }
