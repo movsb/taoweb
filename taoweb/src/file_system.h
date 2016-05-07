@@ -113,8 +113,4 @@ namespace file_system {
         std::string     _file;
         HANDLE          _handle;
     };
-
-    //////////////////////////////////////////////////////////////////////////
-
-    int luaopen_filesystem(lua_State* L);
 }

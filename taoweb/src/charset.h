@@ -52,5 +52,4 @@ namespace charset {
 	}
 #endif
 
-    int luaopen_charset(lua_State* L);
 }
