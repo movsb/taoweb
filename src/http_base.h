@@ -1,0 +1,133 @@
+#pragma once
+
+#include <cstring>
+#include <ctime>
+#include <cctype>
+
+#include <string>
+#include <sstream>
+#include <map>
+
+#include <WinSock2.h>
+#include <windows.h>
+
+#include "file_system.h"
+
+namespace taoweb {
+    class win_sock
+    {
+    public:
+        win_sock() {
+            WSADATA _wsa;
+            ::WSAStartup(MAKEWORD(2, 2), &_wsa);
+        }
+
+        ~win_sock() {
+            ::WSACleanup();
+        }
+    };
+
+    void init_winsock();
+
+    struct client_t {
+        in_addr     addr;
+        uint16_t    port;
+        SOCKET      fd;
+    };
+
+    class socket_server_t
+    {
+    public:
+        socket_server_t(const char* addr, uint16_t port, uint16_t backlog = 128) {
+            _addr.S_un.S_addr = ::inet_addr(addr);
+            _port = port;
+            _backlog = backlog;
+        }
+
+        ~socket_server_t() {
+
+        }
+
+    public:
+        void start();
+
+        bool accept(client_t* c);
+
+    protected:
+        SOCKET      _fd;
+    protected:
+        in_addr     _addr;
+        uint16_t    _port;
+        uint16_t    _backlog;
+    };
+
+    class http_header
+    {
+        using string = std::string;
+
+        struct string_nocase_compare
+        {
+            bool operator()(const string& lhs, const string& rhs) {
+                return _stricmp(lhs.c_str(), rhs.c_str()) < 0;
+            }
+        };
+
+        typedef std::map<string, string, string_nocase_compare> strstrimap;
+
+    public:
+        http_header() {}
+        ~http_header() {}
+
+    public:
+        http_header& put(const string& name, const string& value);
+        http_header& put_status(const string& code, const string& reason);
+
+        string get(const char* name) const;
+        string operator[](const char* name) const;
+
+        string get_verb() const {
+            return _verb;
+        }
+
+        string get_uri() const {
+            return _uri;
+        }
+
+        void set_uri(const string& uri) {
+            _uri = uri;
+        }
+
+        string get_query() const {
+            return _query;
+        }
+
+        string get_ver() const {
+            return _ver;
+        }
+
+        const strstrimap& get_headers() const {
+            return _headers;
+        }
+
+        void read(const SOCKET& fd);
+        string serialize() const;
+        operator string() const {
+            return serialize();
+        }
+
+    protected:
+        string      _verb;
+        string      _uri;
+        string      _ver;
+        string      _query;
+        string      _code;
+        string      _reason;
+        strstrimap  _headers;
+    };
+
+    // 根据文件扩展名获取 MIME 类型，取不到时返回 def
+    std::string mime(const std::string& name, const char* def = "application/octet-stream");
+
+    // 生成 HTTP 要求的 GMT 格式当前时间
+    std::string gmtime();
+}

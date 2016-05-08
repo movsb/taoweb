@@ -7,33 +7,33 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\Source.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\charset.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\src\file_system.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\taoweb.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\http_base.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\http_handler.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\src\socket.hpp">
-      <Filter>Source Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\charset.h">
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="..\src\file_system.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\threading.hpp">
+    <ClInclude Include="..\src\http_base.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\http_base.hpp">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\http_handler.hpp">
+    <ClInclude Include="..\src\http_handler.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>

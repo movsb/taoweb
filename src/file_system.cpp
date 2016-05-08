@@ -1,31 +1,16 @@
 #include <memory>
+#include <regex>
 
 #include "charset.h"
 
 #include "file_system.h"
 
 namespace file_system {
-    std::string ext(const std::string& file) {
-        // 文件如果有扩展名，其小数点的两边必须有其它字符才算
-        // file.exe 算，file.ext. 不算，.git 不算
 
-        auto fs = file.find_last_of('/');
-        auto bs = file.find_last_of('\\');
-        auto d = file.find_last_of('.');
-
-        auto sep = std::string::npos;
-        if (fs != std::string::npos)
-            sep = fs;
-        if (bs != std::string::npos && bs > fs)
-            sep = bs;
-
-        if (d != std::string::npos // 有小数点
-            && d != file.size() - 1 // 不是最后一个字符
-            && (sep == std::string::npos || d > sep + 1) // 如果存在分隔符，那么一定不是分隔符后面的第1个字符
-            ) {
-            return file.c_str() + d;
-        }
-        return "";
+    std::tuple<std::string, std::string> base_and_ext(const std::string& path) {
+        std::smatch results;
+        std::regex_match(path, results, std::regex(R"((.+?)(\.[^.]+)?)"));
+        return std::make_tuple(results[1], results[2]);
     }
 
     bool exists(const char* file) {
@@ -40,6 +25,9 @@ namespace file_system {
     }
 
     file_type type(const char* file) {
+        if(!::PathFileExists(file))
+            return file_type::not_found;
+
         DWORD dw_attr = ::GetFileAttributes(file);
         if (dw_attr == INVALID_FILE_ATTRIBUTES)
             return file_type::error;
@@ -48,67 +36,6 @@ namespace file_system {
             return file_type::directory;
 
         return file_type::file;
-    }
-
-    std::string simplify_path(const char* path) {
-        char new_path[1024];
-        char* i = new_path;
-        const char* p = path;
-
-        ::strncpy(new_path, path, sizeof(new_path));
-
-        char c;
-        while (c = *p++) {
-            if (c == '/') {
-                while (i > new_path && i[-1] == '/')
-                    i--;
-
-                *i++ = '/';
-                continue;
-            }
-            else if (c == '.' && i[-1] == '/') {
-                c = *p++;
-                if (c == '/') {
-                    continue;
-                }
-                else if (c == '.') {
-                    c = *p++;
-                    if (c == '/' || c == '\0') {
-                        if (i - new_path > 1) i--;
-                        while (i > new_path && i[-1] != '/')
-                            i--;
-
-                        if (c == '\0') break;
-                        else continue;
-                    }
-                    else {
-                        *i++ = '.';
-                        *i++ = '.';
-                        *i++ = c;
-                        continue;
-                    }
-                }
-                else if (c == '\0') {
-                    break;
-                }
-                else {
-                    *i++ = '.';
-                    *i++ = c;
-                    continue;
-                }
-            }
-            else {
-                *i++ = c;
-            }
-        }
-
-        if (i == new_path) *i++ = '/';
-        if (i - new_path > 1 && i[-1] == '/') i--;
-
-        *i++ = '\0';
-
-        std::string np(new_path);
-        return np;
     }
 
     void get_directory_files(const char* base, std::vector<file_entry>* files) {
@@ -135,6 +62,70 @@ namespace file_system {
             ::FindClose(hfind);
         }
         if (is_64bit()) ::Wow64EnableWow64FsRedirection(TRUE);
+    }
+
+    // ------------------------------------------------------------------------------------------------------------------
+
+    uint64_t file_object_t::size() {
+        if(auto st = stat()) {
+            return st->size;
+        } else {
+            return 0;
+        }
+    }
+
+    std::string file_object_t::etag() {
+        if(auto st = stat()) {
+            char tagstr[19];
+            ::sprintf(tagstr, R"("%08X%08X")", st->inode); // TODO
+            return tagstr;
+        } else {
+            return "";
+        }
+    }
+
+    stat_t* file_object_t::stat() {
+        BY_HANDLE_FILE_INFORMATION info;
+        if(!::GetFileInformationByHandle(_handle, &info))
+            return nullptr;
+
+        stat_t* st = &_stat;
+
+        st->attr = info.dwFileAttributes;
+        st->size = ((uint64_t)info.nFileSizeHigh << 32) + info.nFileSizeLow;
+        st->inode = ((uint64_t)info.nFileIndexHigh << 32) + info.nFileIndexLow;
+        st->creation_time = info.ftCreationTime;
+        st->write_time = info.ftLastWriteTime;
+        st->access_time = info.ftLastAccessTime;
+
+        return st;
+    }
+
+    bool file_object_t::close() {
+        if(!_handle || ::CloseHandle(_handle)) {
+            _handle = nullptr;
+            return true;
+        }
+
+        return false;
+    }
+
+    bool file_object_t::open() {
+        _handle = ::CreateFile(_file.c_str(),
+            GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+        if(_handle == INVALID_HANDLE_VALUE)
+            _handle = nullptr;
+
+        return !!_handle;
+    }
+
+    void file_object_t::read_block(int size, std::function<void(const void* buf, int size)> callback) {
+        DWORD dwRead;
+        std::unique_ptr<unsigned char> block(new unsigned char[size]);
+
+        while(::ReadFile(_handle, block.get(), size, &dwRead, nullptr) && dwRead > 0) {
+            callback(block.get(), (int)dwRead);
+        }
     }
 
 }
