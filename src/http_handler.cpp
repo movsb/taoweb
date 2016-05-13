@@ -1,6 +1,7 @@
 #include <string>
 #include <sstream>
 #include <iostream>
+#include <regex>
 
 #include <WinSock2.h>
 #include <windows.h>
@@ -11,7 +12,11 @@
 namespace taoweb {
 
     bool http_handler_t::handle_dynamic(http_header_t& header) {
-        if(header.get_uri() == "/about") {
+
+        std::smatch matches;
+        std::string uri(header.get_uri());
+
+        if(uri == "/about") {
             http_header_t response_header;
             response_header.put_status("200", "OK")
                 .put("Server", "taoweb/1.0")
@@ -31,6 +36,45 @@ namespace taoweb {
             send("\r\n");
             send("Response:------------------------------------------------------------------\r\n");
             send(response_header);
+            close();
+
+            return true;
+        }
+        else if(std::regex_search(uri, matches, std::regex(R"(^/cgi-bin/([-\w]+))"))) {
+            http_header_t response_header;
+            response_header.put_status("200", "OK")
+                .put("Server", "taoweb/1.0")
+                .put("Date", gmtime())
+                .put("Content-Type", "text/plain")
+                ;
+
+            send(response_header);
+
+            auto cmd = matches[1].str();
+            system((cmd + " > _tmp").c_str());
+
+            file_system::file_object_t file("_tmp");
+            file.open();
+
+            file.read_block(1024, [&](const void* buf, int size) {
+                send(buf, size);
+                return true;
+            });
+
+            close();
+
+            return true;
+        }
+        else if(std::regex_search(uri, matches, std::regex(R"(^/redirect/(.*))"))) {
+            http_header_t response_header;
+            response_header.put_status("302", "Moved Temporarily")
+                .put("Server", "taoweb/1.0")
+                .put("Date", gmtime())
+                .put("Location", matches[1])
+                ;
+
+            send(response_header);
+
             close();
 
             return true;
