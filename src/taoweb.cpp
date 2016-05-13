@@ -9,8 +9,6 @@
 
 using namespace taoweb;
 
-
-
 int main()
 {
     init_winsock();

@@ -10,9 +10,9 @@
 
 namespace taoweb {
 
-    bool http_handler_t::handle_dynamic(http_header& header) {
+    bool http_handler_t::handle_dynamic(http_header_t& header) {
         if(header.get_uri() == "/about") {
-            http_header response_header;
+            http_header_t response_header;
             response_header.put_status("200", "OK")
                 .put("Server", "taoweb/1.0")
                 .put("Date", gmtime())
@@ -26,10 +26,10 @@ namespace taoweb {
             }
 
             send(response_header);
-            send("Request:\r\n");
+            send("Request: ------------------------------------------------------------------\r\n");
             send(oss.str());
             send("\r\n");
-            send("Response:\r\n");
+            send("Response:------------------------------------------------------------------\r\n");
             send(response_header);
             close();
 
@@ -43,7 +43,7 @@ namespace taoweb {
         using string = std::string;
         using namespace file_system;
 
-        http_header header;
+        http_header_t header;
         header.read(_client.fd);
 
         // prematurely closed connection
@@ -60,12 +60,13 @@ namespace taoweb {
 
         if(ty == file_type::directory) {
             if(header.get_uri() != "/" && path.back() != '/') {
-                http_header response_header;
+                http_header_t response_header;
                 response_header.put_status("301", "Moved Permanently")
                     .put("Server", "taoweb/1.0")
                     .put("Date", gmtime())
                     .put("Location", header.get_uri() + '/')
                     ;
+
                 send(response_header);
                 close();
             }
@@ -75,7 +76,7 @@ namespace taoweb {
             }
         }
         else if(ty == file_type::not_found) {
-            http_header header;
+            http_header_t header;
             header.put_status("404", "Not Found")
                 .put("Server", "taoweb/1.0")
                 .put("Date", gmtime())
@@ -103,8 +104,8 @@ R"(<!doctype html>
             close();
         }
         else if(ty == file_type::access_denied || ty == file_type::error) {
-            http_header header;
-            header.put_status("404", "Not Found")
+            http_header_t header;
+            header.put_status("403", "Forbidden")
                 .put("Server", "taoweb/1.0")
                 .put("Date", gmtime())
                 ;
@@ -138,7 +139,7 @@ R"(<!doctype html>
             stat_t* st = file.stat();
 
             if(header.get("If-None-Match") == file.etag()) {
-                http_header header;
+                http_header_t header;
                 header.put_status("304", "Not Modified")
                     .put("Server", "taoweb/1.0")
                     .put("Date", gmtime())
@@ -149,7 +150,7 @@ R"(<!doctype html>
             }
             else {
 
-                http_header header;
+                http_header_t header;
                 header.put_status("200", "OK")
                     .put("Server", "taoweb/1.0")
                     .put("Date", gmtime())
@@ -162,6 +163,7 @@ R"(<!doctype html>
 
                 file.read_block(4096, [&](const void* buf, int size) {
                     send(buf, size);
+                    return true;
                 });
 
                 close();

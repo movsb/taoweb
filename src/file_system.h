@@ -10,6 +10,8 @@
 
 #include <Shlwapi.h>
 
+namespace taoweb {
+
 namespace file_system {
     std::tuple<std::string, std::string> base_and_ext(const std::string& path);
 
@@ -57,7 +59,7 @@ namespace file_system {
 
         bool close();
 
-        void read_block(int size, std::function<void(const void* buf, int size)> callback);
+        void read_block(int size, std::function<bool(const void* buf, int size)> callback);
 
         stat_t* stat();
 
@@ -70,4 +72,6 @@ namespace file_system {
         std::string     _file;
         HANDLE          _handle;
     };
+}
+
 }

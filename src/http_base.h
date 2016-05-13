@@ -61,7 +61,7 @@ namespace taoweb {
         uint16_t    _backlog;
     };
 
-    class http_header
+    class http_header_t
     {
         using string = std::string;
 
@@ -75,12 +75,12 @@ namespace taoweb {
         typedef std::map<string, string, string_nocase_compare> strstrimap;
 
     public:
-        http_header() {}
-        ~http_header() {}
+        http_header_t() {}
+        ~http_header_t() {}
 
     public:
-        http_header& put(const string& name, const string& value);
-        http_header& put_status(const string& code, const string& reason);
+        http_header_t& put(const string& name, const string& value);
+        http_header_t& put_status(const string& code, const string& reason);
 
         string get(const char* name) const;
         string operator[](const char* name) const;
@@ -110,7 +110,9 @@ namespace taoweb {
         }
 
         void read(const SOCKET& fd);
+
         string serialize() const;
+
         operator string() const {
             return serialize();
         }

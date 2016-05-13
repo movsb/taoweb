@@ -79,18 +79,18 @@ namespace taoweb {
 
     // --------------------------------------------------------------------------------------------
 
-    http_header& http_header::put(const std::string& name, const std::string& value) {
+    http_header_t& http_header_t::put(const std::string& name, const std::string& value) {
         _headers[name] = value;
         return *this;
     }
 
-    http_header& http_header::put_status(const string& code, const string& reason) {
+    http_header_t& http_header_t::put_status(const string& code, const string& reason) {
         _code = code;
         _reason = reason;
         return *this;
     }
 
-    std::string http_header::get(const char* name) const {
+    std::string http_header_t::get(const char* name) const {
         auto it = _headers.find(name);
         if(it != _headers.cend())
             return it->second;
@@ -98,11 +98,11 @@ namespace taoweb {
             return "";
     }
 
-    std::string http_header::operator[](const char* name) const {
+    std::string http_header_t::operator[](const char* name) const {
         return get(name);
     }
 
-    void http_header::read(const SOCKET& fd) {
+    void http_header_t::read(const SOCKET& fd) {
         enum class state_t {
             is_return, is_newline, is_2nd_return, is_2nd_newline,
             b_verb, i_verb, a_verb,
@@ -280,7 +280,7 @@ namespace taoweb {
     fail:;
     }
 
-    std::string http_header::serialize() const {
+    std::string http_header_t::serialize() const {
         std::ostringstream oss;
 
         oss << "HTTP/1.1 ";

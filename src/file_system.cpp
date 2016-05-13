@@ -1,9 +1,9 @@
 #include <memory>
 #include <regex>
 
-#include "charset.h"
-
 #include "file_system.h"
+
+namespace taoweb {
 
 namespace file_system {
 
@@ -119,13 +119,17 @@ namespace file_system {
         return !!_handle;
     }
 
-    void file_object_t::read_block(int size, std::function<void(const void* buf, int size)> callback) {
+    void file_object_t::read_block(int size, std::function<bool(const void* buf, int size)> callback) {
         DWORD dwRead;
         std::unique_ptr<unsigned char> block(new unsigned char[size]);
 
         while(::ReadFile(_handle, block.get(), size, &dwRead, nullptr) && dwRead > 0) {
-            callback(block.get(), (int)dwRead);
+            if(!callback(block.get(), (int)dwRead)) {
+                break;
+            }
         }
     }
+
+}
 
 }

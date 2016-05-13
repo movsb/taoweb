@@ -12,7 +12,7 @@ namespace taoweb {
         void handle();
 
     protected:
-        bool handle_dynamic(http_header& header);
+        bool handle_dynamic(http_header_t& header);
 
     protected:
         void close();
