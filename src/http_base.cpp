@@ -1,14 +1,18 @@
 #include <string>
 #include <sstream>
 #include <algorithm>
+#include <regex>
 
 #include "http_base.h"
 #include "file_system.h"
 
 namespace taoweb {
+
     void init_winsock() {
         static win_sock _win_sock;
     }
+
+    // --------------------------------------------------------------------------------------------
 
     std::string gmtime() {
         time_t now = time(nullptr);
@@ -79,7 +83,7 @@ namespace taoweb {
 
     // --------------------------------------------------------------------------------------------
 
-    http_header_t& http_header_t::put(const std::string& name, const std::string& value) {
+    http_header_t& http_header_t::put(const string& name, const string& value) {
         _headers[name] = value;
         return *this;
     }
@@ -90,7 +94,7 @@ namespace taoweb {
         return *this;
     }
 
-    std::string http_header_t::get(const char* name) const {
+    http_header_t::string http_header_t::get(const char* name) const {
         auto it = _headers.find(name);
         if(it != _headers.cend())
             return it->second;
@@ -98,186 +102,103 @@ namespace taoweb {
             return "";
     }
 
-    std::string http_header_t::operator[](const char* name) const {
+    http_header_t::string http_header_t::operator[](const char* name) const {
         return get(name);
     }
 
     void http_header_t::read(const SOCKET& fd) {
-        enum class state_t {
-            is_return, is_newline, is_2nd_return, is_2nd_newline,
-            b_verb, i_verb, a_verb,
-            i_uri, a_uri,
-            i_query, a_query,
-            i_version, a_version,
-            i_key, a_key, i_val, a_val, i_colon,
-        };
+        const int buf_size = 4096;
+        char buf[buf_size];
+        std::string stream;
 
-        state_t state = state_t::b_verb;
-        bool reusec = false;
-        std::string key, val;
+        /*  GET /index.html HTTP/1.1\r\n
+         *  Host: localhost\r\n
+         *  User-Agent: Mozilla/5.0 (bla bla)\r\n
+         *  \r\n
+         *  
+         **/
 
-        unsigned char c;
-        int r;
+        // 先读取并保存所有的 HTTP 请求头部供后面一次性处理
+        for(;;) {
+            int n = ::recv(fd, &buf[0], buf_size, 0);
+            if(n > 0) {
+                stream.append(buf, n);
 
-        while(reusec || (r = ::recv(fd, (char*)&c, 1, 0)) == 1) {
-            reusec = false;
-            switch(state) {
-            case state_t::b_verb:
-            case state_t::i_verb:
-                if(c >= 'A' && c <= 'Z') {
-                    state = state_t::i_verb;
-                    _verb += c;
-                    continue;
-                } else {
-                    if(_verb.size()) {
-                        state = state_t::a_verb;
-                        reusec = true;
-                        continue;
-                    } else {
-                        goto fail;
-                    }
+                // 判断是否已经读完所有的头部（以空行结束，只考虑 \r\n 换行符）
+                if(stream.size() > 4 && strcmp(&stream[stream.size() - 4], "\r\n\r\n") == 0) {
+                    break;
                 }
-                break;
-            case state_t::a_verb:
-                if(c == ' ' || c == '\t') {
-                    continue;
-                } else if(c > 32 && c < 128) {
-                    state = state_t::i_uri;
-                    reusec = true;
-                    continue;
-                } else {
-                    goto fail;
-                }
-                break;
-            case state_t::i_uri:
-                if(c > 32 && c < 128) {
-                    if(c == '?') {
-                        state = state_t::i_query;
-                        continue;
-                    } else {
-                        _uri += c;
-                        continue;
-                    }
-                } else {
-                    state = state_t::a_uri;
-                    reusec = true;
-                    continue;
-                }
-            case state_t::i_query:
-                if(c > 32 && c < 128) {
-                    _query += c;
-                    continue;
-                } else {
-                    state = state_t::a_query;
-                    reusec = true;
-                    continue;
-                }
-            case state_t::a_query:
-            case state_t::a_uri:
-                if(c == ' ' || c == '\t') {
-                    continue;
-                } else {
-                    state = state_t::i_version;
-                    reusec = true;
-                    continue;
-                }
-            case state_t::i_version:
-                if(c > 32 && c < 128) {
-                    _ver += c;
-                    continue;
-                } else {
-                    state = state_t::a_version;
-                    reusec = true;
-                    continue;
-                }
-            case state_t::a_version:
-                if(c == ' ' || c == '\t') {
-                    continue;
-                } else if(c == '\r') {
-                    state = state_t::is_return;
-                    continue;
-                } else {
-                    goto fail;
-                }
-            case state_t::is_return:
-                if(c == '\n') {
-                    state = state_t::is_newline;
-                    continue;
-                } else {
-                    goto fail;
-                }
-            case state_t::is_newline:
-                key = "", val = "";
-                if(c == '\r') {
-                    state = state_t::is_2nd_return;
-                    continue;
-                } else {
-                    state = state_t::i_key;
-                    reusec = true;
-                    continue;
-                }
-            case state_t::is_2nd_return:
-                if(c == '\n') {
-                    state = state_t::is_2nd_newline;
-                    reusec = true; // !!
-                    continue;
-                } else {
-                    goto fail;
-                }
-            case state_t::is_2nd_newline:
-                return;
-            case state_t::i_key:
-                if(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '-' || c == '_') {
-                    state = state_t::i_key;
-                    key += c;
-                    continue;
-                } else if(c == ' ') {
-                    state = state_t::a_key;
-                    continue;
-                } else if(c == ':') {
-                    state = state_t::i_colon;
-                    continue;
-                } else {
-                    goto fail;
-                }
-            case state_t::a_key:
-                if(c == ' ') {
-                    continue;
-                } else if(c == ':') {
-                    state = state_t::i_colon;
-                    continue;
-                } else {
-                    goto fail;
-                }
-            case state_t::i_colon:
-                if(c == ' ') {
-                    continue;
-                } else if(c > 32 && c < 128) {
-                    state = state_t::i_val;
-                    reusec = true;
-                    continue;
-                } else {
-                    goto fail;
-                }
-            case state_t::i_val:
-                if(c >= 32 && c < 128) {
-                    val += c;
-                    continue;
-                } else if(c == '\r') {
-                    if(key.size()) {
-                        put(key, val);
-                    }
-                    state = state_t::is_return;
-                    continue;
-                } else {
-                    goto fail;
-                }
-            default:
+            }
+            else {
+                // 简单处理错误
+                stream.clear();
                 break;
             }
         }
 
-    fail:;
+        // 如果有错误。。。
+        if(stream.empty()) {
+            return;
+        }
+
+        try {
+            std::smatch matches;
+            std::string suffix(stream);
+
+            // 匹配请求方法
+            if(std::regex_search(suffix, matches, std::regex(R"(^(\w+)[\t ]+)"))) {
+                _verb = matches[1];
+                suffix = matches.suffix().str();
+            } else {
+                throw "缺少请求方法。";
+            }
+
+            // 匹配URI和QUERY
+            if(std::regex_search(suffix, matches, std::regex(R"(^([^\?\t ]+)(\?[^\t ]+)?)"))) {
+                _uri = matches[1];
+                auto query = matches[2].str();
+                suffix = matches.suffix().str();
+
+                if(!query.empty()) {
+                    auto suffix = query.substr(1);
+
+                    for(;;) {
+                        if(std::regex_search(suffix, matches, std::regex(R"(^&)"))) {
+                            suffix = matches.suffix().str();
+                        } else if(std::regex_search(suffix, matches, std::regex(R"(^(\w)(=(\w*)?)?)"))) {
+                            _query[matches[1]] = matches[3];
+                            suffix = matches.suffix().str();
+                        } else {
+                            break;
+                        }
+                    }
+                }
+            } else {
+                throw "缺少URI。";
+            }
+
+            // 匹配 HTTP 版本
+            if(std::regex_search(suffix, matches, std::regex(R"(^[\t ]+(\w+/\d+\.\d+)\r?\n)"))) {
+                _ver = matches[1];
+                suffix = matches.suffix().str();
+            } else {
+                throw "缺少HTTP协议。";
+            }
+
+            // 匹配 请求字段
+            while(std::regex_search(suffix, matches, std::regex(R"(^([-\w]+)[\t ]*:[\t ]*(.*?)[\t ]*\r?\n)"))) {
+                _headers[matches[1]] = matches[2];
+                suffix = matches.suffix().str();
+            }
+
+            // 匹配结尾空行
+            if(!std::regex_match(suffix, std::regex(R"(\r?\n)")))
+                throw "缺少结束换行符。";
+        }
+        catch(const char*) {
+            _headers.clear();
+            return;
+        }
     }
 
     std::string http_header_t::serialize() const {
@@ -307,7 +228,7 @@ namespace taoweb {
         if(cfd != -1) {
             c->addr = addr.sin_addr;
             c->port = ntohs(addr.sin_port);
-            c->fd = cfd;
+            c->fd   = cfd;
 
             return true;
         } else {
@@ -321,9 +242,9 @@ namespace taoweb {
             throw "socket() error.";
 
         sockaddr_in server_addr = {0};
-        server_addr.sin_family = AF_INET;
-        server_addr.sin_addr = _addr;
-        server_addr.sin_port = htons(_port);
+        server_addr.sin_family  = AF_INET;
+        server_addr.sin_addr    = _addr;
+        server_addr.sin_port    = htons(_port);
 
         if(::bind(_fd, (sockaddr*)&server_addr, sizeof(server_addr)) == -1)
             throw "bind() error.";

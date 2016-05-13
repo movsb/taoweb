@@ -21,9 +21,9 @@ namespace taoweb {
 
             std::ostringstream oss;
             oss << header.get_verb() << " " << header.get_uri() << " " << header.get_ver() << "\r\n";
-            for(auto& it : header.get_headers()) {
-                oss << it.first << ": " << it.second << "\r\n";
-            }
+            header.for_each([&](const std::string& name, const std::string& value) {
+                oss << name << ": " << value << "\r\n";
+            });
 
             send(response_header);
             send("Request: ------------------------------------------------------------------\r\n");
@@ -47,7 +47,7 @@ namespace taoweb {
         header.read(_client.fd);
 
         // prematurely closed connection
-        if(header.get_headers().empty())
+        if(header.empty())
             return;
 
         if(handle_dynamic(header))

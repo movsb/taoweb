@@ -97,7 +97,7 @@ namespace taoweb {
             _uri = uri;
         }
 
-        string get_query() const {
+        const strstrimap& get_query() const {
             return _query;
         }
 
@@ -105,8 +105,14 @@ namespace taoweb {
             return _ver;
         }
 
-        const strstrimap& get_headers() const {
-            return _headers;
+        bool empty() const {
+            return _headers.empty();
+        }
+
+        void for_each(std::function<void(const string& name, const string& value)> callback) {
+            for(auto& it : _headers) {
+                callback(it.first, it.second);
+            }
         }
 
         void read(const SOCKET& fd);
@@ -121,9 +127,9 @@ namespace taoweb {
         string      _verb;
         string      _uri;
         string      _ver;
-        string      _query;
         string      _code;
         string      _reason;
+        strstrimap  _query;
         strstrimap  _headers;
     };
 
