@@ -45,7 +45,7 @@ namespace taoweb {
             response_header.put_status("200", "OK")
                 .put("Server", "taoweb/1.0")
                 .put("Date", gmtime())
-                .put("Content-Type", "text/plain")
+                .put("Content-Type", "text/plain; charset=gb2312")
                 ;
 
             send(response_header);
@@ -115,8 +115,39 @@ namespace taoweb {
                 close();
             }
             else {
-                header.set_uri(header.get_uri() + "index.html");
-                goto _l_rewrite;
+                auto newuri = exe_dir() + '/' + header.get_uri() + "index.html";
+                if (file_system::exists(newuri.c_str())) {
+                    header.set_uri(header.get_uri() + "index.html");
+                    goto _l_rewrite;
+                }
+                else {
+                    http_header_t response_header;
+                    response_header.put_status("403", "forbidden")
+                        .put("Server", "taoweb/1.0")
+                        .put("Date", gmtime())
+                        ;
+
+                    send(response_header);
+
+                    string body(
+                        R"(<!doctype html>
+<html>
+<head>
+    <title>403 - Forbidden</title>
+</head>
+<body>
+    <center>
+        <h1>403 - Forbidden</h1>
+        <hr />
+        <p>taoweb/1.0</p>
+    </center>
+</body>
+</html>
+)");
+                    send(body);
+
+                    close();
+                }
             }
         }
         else if(ty == file_type::not_found) {
