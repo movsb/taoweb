@@ -2,6 +2,7 @@
 #include <sstream>
 #include <iostream>
 #include <regex>
+#include <memory>
 
 #include <WinSock2.h>
 #include <windows.h>
@@ -185,10 +186,10 @@ namespace taoweb {
                 si.hStdError = hStdErrWrite;
                 si.wShowWindow = SW_HIDE;
 
-                std::string cmdline_modifable;
-                cmdline_modifable.assign(cmdline.c_str());
+                std::unique_ptr<char[]> cmdline_modifiable(new char[cmdline.size() + 1]);
+                ::memcpy(cmdline_modifiable.get(), cmdline.c_str(), cmdline.size() + 1);
 
-                bool bOK = !!::CreateProcess(nullptr, (LPSTR)cmdline_modifable.c_str(),
+                bool bOK = !!::CreateProcess(nullptr, cmdline_modifiable.get(),
                     nullptr, nullptr, TRUE, // 子进程需要继承句柄
                     CREATE_NEW_CONSOLE, (void*)envstr.c_str(), nullptr, &si, &pi);
 
