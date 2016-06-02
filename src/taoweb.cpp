@@ -14,7 +14,7 @@ int main()
     init_winsock();
 
     try {
-        socket_server_t server("127.0.0.1", 80);
+        socket_server_t server("127.0.0.1", 81);
         server.start();
 
         std::atomic<bool> running;

@@ -94,143 +94,165 @@ namespace taoweb {
     bool http_handler_t::handle_cgi_bin(http_header_t& header) {
         std::smatch matches;
         auto uri = header.get_uri();
-        if(std::regex_match(uri, matches, std::regex(R"(/cgi-bin/([^/]+\.lua))", std::regex_constants::icase))) {
-            using ssmap_t       = std::map<std::string, std::string>;
-            using callback_t    = std::function<void(const char* data, int cb)>;
 
-            // 执行子进程。传入命令行，环境变量，输出回调
-            auto exec = [](const std::string& cmdline, const ssmap_t& env, callback_t output) {
+        // 执行子进程。传入命令行，环境变量，输出回调
+        using ssmap_t = std::map<std::string, std::string>;
+        using callback_t = std::function<void(const char* const data, int cb)>;
 
-                // 传递给子进程用的 标准读读句柄，标准写写句柄，标准出错写句柄
-                HANDLE hStdInRead = nullptr, hStdInWrite = nullptr, hStdInWriteTemp = nullptr;
-                HANDLE hStdOutRead = nullptr, hStdOutWrite = nullptr, hStdOutReadTemp = nullptr;
-                HANDLE hStdErrWrite = nullptr;
+        static auto exec = [](const std::string& cmdline, const ssmap_t& env, callback_t output) {
 
-                // 当前进程句柄与句柄继承选项
-                HANDLE hPS;
-                DWORD dwDupOpt;
+            // 传递给子进程用的 标准读读句柄，标准写写句柄，标准出错写句柄
+            HANDLE hStdInRead = nullptr, hStdInWrite = nullptr, hStdInWriteTemp = nullptr;
+            HANDLE hStdOutRead = nullptr, hStdOutWrite = nullptr, hStdOutReadTemp = nullptr;
+            HANDLE hStdErrWrite = nullptr;
 
-                // 被创建的用于提供给的子进程的管道应该被继承，不然没法用
-                SECURITY_ATTRIBUTES sa;
-                sa.nLength = sizeof(sa);
-                sa.lpSecurityDescriptor = nullptr;
-                sa.bInheritHandle = TRUE;
+            // 当前进程句柄与句柄继承选项
+            HANDLE hPS;
+            DWORD dwDupOpt;
 
-                try {
-                    // 创建通信管道
-                    if(!::CreatePipe(&hStdOutReadTemp, &hStdOutWrite, &sa, 0))
-                        throw "CreatePipe() fail";
+            // 被创建的用于提供给的子进程的管道应该被继承，不然没法用
+            SECURITY_ATTRIBUTES sa;
+            sa.nLength = sizeof(sa);
+            sa.lpSecurityDescriptor = nullptr;
+            sa.bInheritHandle = TRUE;
 
-                    if(!::CreatePipe(&hStdInRead, &hStdInWriteTemp, &sa, 0))
-                        throw "CreatePipe() fail";
+            try {
+                // 创建通信管道
+                if (!::CreatePipe(&hStdOutReadTemp, &hStdOutWrite, &sa, 0))
+                    throw "CreatePipe() fail";
 
-                    hPS = ::GetCurrentProcess();
-                    dwDupOpt = DUPLICATE_SAME_ACCESS;
+                if (!::CreatePipe(&hStdInRead, &hStdInWriteTemp, &sa, 0))
+                    throw "CreatePipe() fail";
+
+                hPS = ::GetCurrentProcess();
+                dwDupOpt = DUPLICATE_SAME_ACCESS;
 
 
-                    // 复制标准写为标准出错，使它们共用
-                    if(!::DuplicateHandle(hPS, hStdOutWrite, hPS, &hStdErrWrite, 0, TRUE, dwDupOpt))
-                        throw "DuplicateHandle() fail";
+                // 复制标准写为标准出错，使它们共用
+                if (!::DuplicateHandle(hPS, hStdOutWrite, hPS, &hStdErrWrite, 0, TRUE, dwDupOpt))
+                    throw "DuplicateHandle() fail";
 
-                    // 使当前进程的标准写读句柄，标准读写句柄不可继承，不然的话
-                    // 子进程继承了句柄退出的时候会导致 ReadFile 被挂起。
+                // 使当前进程的标准写读句柄，标准读写句柄不可继承，不然的话
+                // 子进程继承了句柄退出的时候会导致 ReadFile 被挂起。
 
-                    if(!::DuplicateHandle(hPS, hStdOutReadTemp, hPS, &hStdOutRead, 0, FALSE, dwDupOpt))
-                        throw "DuplicateHandle() fail";
+                if (!::DuplicateHandle(hPS, hStdOutReadTemp, hPS, &hStdOutRead, 0, FALSE, dwDupOpt))
+                    throw "DuplicateHandle() fail";
 
-                    if(!::DuplicateHandle(hPS, hStdInWriteTemp, hPS, &hStdInWrite, 0, FALSE, dwDupOpt))
-                        throw "DuplicateHandle() fail";
-                } catch(...) {
-                    if(hStdOutRead)     ::CloseHandle(hStdOutRead);
-                    if(hStdOutWrite)    ::CloseHandle(hStdOutWrite);
-                    if(hStdOutReadTemp) ::CloseHandle(hStdOutReadTemp);
-                    if(hStdInRead)      ::CloseHandle(hStdInRead);
-                    if(hStdInWrite)     ::CloseHandle(hStdInWrite);
-                    if(hStdInWriteTemp) ::CloseHandle(hStdInWriteTemp);
-                    if(hStdErrWrite)    ::CloseHandle(hStdErrWrite);
+                if (!::DuplicateHandle(hPS, hStdInWriteTemp, hPS, &hStdInWrite, 0, FALSE, dwDupOpt))
+                    throw "DuplicateHandle() fail";
+            }
+            catch (...) {
+                if (hStdOutRead)     ::CloseHandle(hStdOutRead);
+                if (hStdOutWrite)    ::CloseHandle(hStdOutWrite);
+                if (hStdOutReadTemp) ::CloseHandle(hStdOutReadTemp);
+                if (hStdInRead)      ::CloseHandle(hStdInRead);
+                if (hStdInWrite)     ::CloseHandle(hStdInWrite);
+                if (hStdInWriteTemp) ::CloseHandle(hStdInWriteTemp);
+                if (hStdErrWrite)    ::CloseHandle(hStdErrWrite);
 
-                    return;
+                return;
+            }
+
+            // 准备环境变量
+            std::string envstr([&] {
+                // 当前的
+                char* cur_env = GetEnvironmentStrings();
+                if (!cur_env) {
+                    cur_env = "";
                 }
 
-                // 准备环境变量
-                std::string envstr([&] {
-                    // 当前的
-                    char* cur_env = GetEnvironmentStrings();
-                    if(!cur_env) {
-                        cur_env = "";
-                    }
-
-                    // 遍历到最后准备追加
-                    char* p = cur_env;
-                    while(*p) {
-                        while(*p++)
-                            ;
-                    }
-
-                    // 附加环境变量（CGI变量）
-                    std::string cur_str(cur_env, p);
-                    for(const auto& it : env) {
-                        cur_str += it.first + '=' + it.second + '\0';
-                    }
-
-                    return std::move(cur_str);
-                }());
-
-                // 创建子进程（带重定向和环境变量）
-                PROCESS_INFORMATION pi;
-                STARTUPINFO si = {0};
-                si.cb = sizeof(STARTUPINFO);
-                si.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
-                si.hStdInput = hStdInRead;
-                si.hStdOutput = hStdOutWrite;
-                si.hStdError = hStdErrWrite;
-                si.wShowWindow = SW_HIDE;
-
-                std::unique_ptr<char[]> cmdline_modifiable(new char[cmdline.size() + 1]);
-                ::memcpy(cmdline_modifiable.get(), cmdline.c_str(), cmdline.size() + 1);
-
-                bool bOK = !!::CreateProcess(nullptr, cmdline_modifiable.get(),
-                    nullptr, nullptr, TRUE, // 子进程需要继承句柄
-                    CREATE_NEW_CONSOLE, (void*)envstr.c_str(), nullptr, &si, &pi);
-
-                // 关闭不再需要的句柄
-                ::CloseHandle(hStdInRead);
-                ::CloseHandle(hStdOutWrite);
-                ::CloseHandle(hStdErrWrite);
-
-                if(!bOK) {
-                    ::CloseHandle(hStdInWrite);
-                    ::CloseHandle(hStdOutRead);
-                    return;
+                // 遍历到最后准备追加
+                char* p = cur_env;
+                while (*p) {
+                    while (*p++)
+                        ;
                 }
 
-                // 准备读管道数据
-                const int buf_size = 4096;
-                char buf[buf_size];
-                DWORD dwRead;
-
-                // 循环读
-                while(::ReadFile(hStdOutRead, (void*)&buf[0], buf_size, &dwRead, nullptr) && dwRead > 0) {
-                    output(buf, dwRead);
+                // 附加环境变量（CGI变量）
+                std::string cur_str(cur_env, p);
+                for (const auto& it : env) {
+                    cur_str += it.first + '=' + it.second + '\0';
                 }
 
-                // 读结束
-                DWORD dwErr = ::GetLastError();
-                if(dwErr == ERROR_BROKEN_PIPE || dwErr == ERROR_NO_DATA) {
+                return std::move(cur_str);
+            }());
 
-                }
+            // 创建子进程（带重定向和环境变量）
+            PROCESS_INFORMATION pi;
+            STARTUPINFO si = { 0 };
+            si.cb = sizeof(STARTUPINFO);
+            si.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
+            si.hStdInput = hStdInRead;
+            si.hStdOutput = hStdOutWrite;
+            si.hStdError = hStdErrWrite;
+            si.wShowWindow = SW_HIDE;
 
+            std::unique_ptr<char[]> cmdline_modifiable(new char[cmdline.size() + 1]);
+            ::memcpy(cmdline_modifiable.get(), cmdline.c_str(), cmdline.size() + 1);
+
+            bool bOK = !!::CreateProcess(nullptr, cmdline_modifiable.get(),
+                nullptr, nullptr, TRUE, // 子进程需要继承句柄
+                CREATE_NEW_CONSOLE, (void*)envstr.c_str(), nullptr, &si, &pi);
+
+            // 关闭不再需要的句柄
+            ::CloseHandle(hStdInRead);
+            ::CloseHandle(hStdOutWrite);
+            ::CloseHandle(hStdErrWrite);
+
+            if (!bOK) {
                 ::CloseHandle(hStdInWrite);
                 ::CloseHandle(hStdOutRead);
-            };
+                return;
+            }
 
+            // 准备读管道数据
+            const int buf_size = 4096;
+            char buf[buf_size];
+            DWORD dwRead;
+
+            // 循环读
+            while (::ReadFile(hStdOutRead, (void*)&buf[0], buf_size, &dwRead, nullptr) && dwRead > 0) {
+                output(buf, dwRead);
+            }
+
+            // 读结束
+            DWORD dwErr = ::GetLastError();
+            if (dwErr == ERROR_BROKEN_PIPE || dwErr == ERROR_NO_DATA) {
+
+            }
+
+            ::CloseHandle(hStdInWrite);
+            ::CloseHandle(hStdOutRead);
+        };
+
+        if(std::regex_match(uri, matches, std::regex(R"(/cgi-bin/([^/]+\.lua))", std::regex_constants::icase))) {
             auto command = R"(F:\Utilities\Prog\lua\lua52.exe)";
-            auto script = R"(F:\Utilities\Prog\lua\)" + matches[1].str();
+            auto script = file_system::exe_dir() + '/' + matches[1].str();
 
             auto command_line = std::string(R"(")") + command + R"(" ")" + script + '"';
 
             ssmap_t env;
             env["TEST"] = "TESTTESTTEST";
+
+            exec(command_line, env, [&](const char* buf, int size) {
+                send(buf, size);
+            });
+            
+            close();
+
+            return true;
+        }
+        else if (std::regex_match(uri, matches, std::regex(R"(/cgi-bin/(.+\.php))", std::regex_constants::icase))) {
+            auto command = R"(D:\YangTao\utilities\php7\php-cgi.exe)";
+            auto script = file_system::exe_dir() + '/' + matches[1].str();
+
+            auto command_line = std::string(R"(")") + command + R"(" ")" + script + '"';
+
+            ssmap_t env;
+            env["TEST"] = "TESTTESTTEST";
+            env["HTTP_USER_AGENT"] = "taoweb/1.0";
+
+            send("HTTP/1.1 200 OK\r\n");
 
             exec(command_line, env, [&](const char* buf, int size) {
                 send(buf, size);

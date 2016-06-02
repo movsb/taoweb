@@ -166,7 +166,9 @@ namespace taoweb {
                         if(std::regex_search(suffix, matches, std::regex(R"(^&)"))) {
                             suffix = matches.suffix().str();
                         } else if(std::regex_search(suffix, matches, std::regex(R"(^(\w)(=(\w*)?)?)"))) {
-                            _query[matches[1]] = matches[3];
+                            auto k = matches[1];
+                            auto v = matches[3];
+                            _query[k] = v;
                             suffix = matches.suffix().str();
                         } else {
                             break;
@@ -187,7 +189,9 @@ namespace taoweb {
 
             // Æ¥Åä ÇëÇó×Ö¶Î
             while(std::regex_search(suffix, matches, std::regex(R"(^([-\w]+)[\t ]*:[\t ]*(.*?)[\t ]*\r?\n)"))) {
-                _headers[matches[1]] = matches[2];
+                auto k = matches[1];
+                auto v = matches[2];
+                _headers[k] = v;
                 suffix = matches.suffix().str();
             }
 
@@ -204,9 +208,7 @@ namespace taoweb {
     std::string http_header_t::serialize() const {
         std::ostringstream oss;
 
-        oss << "HTTP/1.1 ";
-        oss << _code << " " << _reason;
-        oss << "\r\n";
+        oss << "HTTP/1.1 " << _code << " " << _reason << "\r\n";
 
         for(auto& h : _headers) {
             oss << h.first << ": " << h.second << "\r\n";
