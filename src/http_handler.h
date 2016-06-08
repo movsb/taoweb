@@ -3,19 +3,19 @@
 #include "http_base.h"
 
 namespace taoweb {
-    class http_handler_t
+    class HTTPHandler
     {
     public:
-        http_handler_t(client_t client)
+        HTTPHandler(Client client)
             : _client(client) {}
 
         void handle();
 
     protected:
-        bool handle_static(http_header_t& header);
-        bool handle_dynamic(http_header_t& header);
-        bool handle_command(http_header_t& header);
-        bool handle_cgi_bin(http_header_t& header);
+        bool handle_static(HTTPHeader& header);
+        bool handle_dynamic(HTTPHeader& header);
+        bool handle_command(HTTPHeader& header);
+        bool handle_cgibin(HTTPHeader& header);
 
     protected:
         void close();
@@ -24,6 +24,6 @@ namespace taoweb {
         void recv(void* buf, int cb);
 
     protected:
-        client_t        _client;
+        Client        _client;
     };
 }

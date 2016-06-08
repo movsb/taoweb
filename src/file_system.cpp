@@ -24,22 +24,22 @@ namespace file_system {
         return path;
     }
 
-    file_type type(const char* file) {
+    FileType type(const char* file) {
         if(!::PathFileExists(file))
-            return file_type::not_found;
+            return FileType::not_found;
 
         DWORD dw_attr = ::GetFileAttributes(file);
         if (dw_attr == INVALID_FILE_ATTRIBUTES)
-            return file_type::error;
+            return FileType::error;
 
         if (dw_attr & FILE_ATTRIBUTE_DIRECTORY)
-            return file_type::directory;
+            return FileType::directory;
 
-        return file_type::file;
+        return FileType::file;
     }
 
-    void get_directory_files(const char* base, std::vector<file_entry>* files) {
-        std::vector<file_entry>& matches = *files;
+    void get_directory_files(const char* base, std::vector<FileEntry>* files) {
+        std::vector<FileEntry>& matches = *files;
         std::string folder(base);
         if (folder.back() != '/' && folder.back() != '\\')
             folder.append(1, '\\');
@@ -66,7 +66,7 @@ namespace file_system {
 
     // ------------------------------------------------------------------------------------------------------------------
 
-    uint64_t file_object_t::size() {
+    uint64_t FileObject::size() {
         if(auto st = stat()) {
             return st->size;
         } else {
@@ -74,7 +74,7 @@ namespace file_system {
         }
     }
 
-    std::string file_object_t::etag() {
+    std::string FileObject::etag() {
         if(auto st = stat()) {
             char tagstr[19];
             ::sprintf(tagstr, R"("%08X%08X")", st->inode); // TODO
@@ -84,12 +84,12 @@ namespace file_system {
         }
     }
 
-    stat_t* file_object_t::stat() {
+    Stat* FileObject::stat() {
         BY_HANDLE_FILE_INFORMATION info;
         if(!::GetFileInformationByHandle(_handle, &info))
             return nullptr;
 
-        stat_t* st = &_stat;
+        Stat* st = &_stat;
 
         st->attr = info.dwFileAttributes;
         st->size = ((uint64_t)info.nFileSizeHigh << 32) + info.nFileSizeLow;
@@ -101,7 +101,7 @@ namespace file_system {
         return st;
     }
 
-    bool file_object_t::close() {
+    bool FileObject::close() {
         if(!_handle || ::CloseHandle(_handle)) {
             _handle = nullptr;
             return true;
@@ -110,7 +110,7 @@ namespace file_system {
         return false;
     }
 
-    bool file_object_t::open() {
+    bool FileObject::open() {
         _handle = ::CreateFile(_file.c_str(),
             GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
         if(_handle == INVALID_HANDLE_VALUE)
@@ -119,7 +119,7 @@ namespace file_system {
         return !!_handle;
     }
 
-    void file_object_t::read_block(int size, std::function<bool(const void* buf, int size)> callback) {
+    void FileObject::read_block(int size, std::function<bool(const void* buf, int size)> callback) {
         DWORD dwRead;
         std::unique_ptr<unsigned char> block(new unsigned char[size]);
 

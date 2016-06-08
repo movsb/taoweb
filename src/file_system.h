@@ -18,7 +18,7 @@ namespace file_system {
     bool exists(const char* file);
     std::string exe_dir();
 
-    enum class file_type {
+    enum class FileType {
         error = -1,
         file,
         directory,
@@ -26,16 +26,16 @@ namespace file_system {
         access_denied,
     };
 
-    file_type type(const char* file);
+    FileType type(const char* file);
 
-    struct file_entry {
+    struct FileEntry {
         bool        isdir;
         std::string file;
     };
 
-    void get_directory_files(const char* base, std::vector<file_entry>* files);
+    void get_directory_files(const char* base, std::vector<FileEntry>* files);
 
-    struct stat_t {
+    struct Stat {
         uint32_t    attr;
         FILETIME    creation_time;
         FILETIME    access_time;
@@ -44,13 +44,13 @@ namespace file_system {
         uint64_t    inode;
     };
 
-    class file_object_t {
+    class FileObject {
     public:
-        file_object_t(const char* file)
+        FileObject(const char* file)
             :_file(file)
         {}
 
-        ~file_object_t(){
+        ~FileObject(){
             close();
         }
 
@@ -61,14 +61,14 @@ namespace file_system {
 
         void read_block(int size, std::function<bool(const void* buf, int size)> callback);
 
-        stat_t* stat();
+        Stat* stat();
 
         std::string etag();
 
         uint64_t size();
 
     protected:
-        stat_t          _stat;
+        Stat            _stat;
         std::string     _file;
         HANDLE          _handle;
     };

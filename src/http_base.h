@@ -14,44 +14,44 @@
 #include "file_system.h"
 
 namespace taoweb {
-    class win_sock
+    class WinSock
     {
     public:
-        win_sock() {
+        WinSock() {
             WSADATA _wsa;
             ::WSAStartup(MAKEWORD(2, 2), &_wsa);
         }
 
-        ~win_sock() {
+        ~WinSock() {
             ::WSACleanup();
         }
     };
 
     void init_winsock();
 
-    struct client_t {
+    struct Client {
         in_addr     addr;
         uint16_t    port;
         SOCKET      fd;
     };
 
-    class socket_server_t
+    class SocketServer
     {
     public:
-        socket_server_t(const char* addr, uint16_t port, uint16_t backlog = 128) {
+        SocketServer(const char* addr, uint16_t port, uint16_t backlog = 128) {
             _addr.S_un.S_addr = ::inet_addr(addr);
             _port = port;
             _backlog = backlog;
         }
 
-        ~socket_server_t() {
+        ~SocketServer() {
 
         }
 
     public:
         void start();
 
-        bool accept(client_t* c);
+        bool accept(Client* c);
 
     protected:
         SOCKET      _fd;
@@ -61,7 +61,7 @@ namespace taoweb {
         uint16_t    _backlog;
     };
 
-    class http_header_t
+    class HTTPHeader
     {
         using string = std::string;
 
@@ -75,12 +75,12 @@ namespace taoweb {
         typedef std::map<string, string, string_nocase_compare> strstrimap;
 
     public:
-        http_header_t() {}
-        ~http_header_t() {}
+        HTTPHeader() {}
+        ~HTTPHeader() {}
 
     public:
-        http_header_t& put(const string& name, const string& value);
-        http_header_t& put_status(const string& code, const string& reason);
+        HTTPHeader& put(const string& name, const string& value);
+        HTTPHeader& put_status(const string& code, const string& reason);
 
         string get(const char* name) const;
         string operator[](const char* name) const;

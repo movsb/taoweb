@@ -9,7 +9,7 @@
 namespace taoweb {
 
     void init_winsock() {
-        static win_sock _win_sock;
+        static WinSock _WinSock;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -83,18 +83,18 @@ namespace taoweb {
 
     // --------------------------------------------------------------------------------------------
 
-    http_header_t& http_header_t::put(const string& name, const string& value) {
+    HTTPHeader& HTTPHeader::put(const string& name, const string& value) {
         _headers[name] = value;
         return *this;
     }
 
-    http_header_t& http_header_t::put_status(const string& code, const string& reason) {
+    HTTPHeader& HTTPHeader::put_status(const string& code, const string& reason) {
         _code = code;
         _reason = reason;
         return *this;
     }
 
-    http_header_t::string http_header_t::get(const char* name) const {
+    HTTPHeader::string HTTPHeader::get(const char* name) const {
         auto it = _headers.find(name);
         if(it != _headers.cend())
             return it->second;
@@ -102,11 +102,11 @@ namespace taoweb {
             return "";
     }
 
-    http_header_t::string http_header_t::operator[](const char* name) const {
+    HTTPHeader::string HTTPHeader::operator[](const char* name) const {
         return get(name);
     }
 
-    void http_header_t::read(const SOCKET& fd) {
+    void HTTPHeader::read(const SOCKET& fd) {
         const int buf_size = 4096;
         char buf[buf_size];
         std::string stream;
@@ -205,7 +205,7 @@ namespace taoweb {
         }
     }
 
-    std::string http_header_t::serialize() const {
+    std::string HTTPHeader::serialize() const {
         std::ostringstream oss;
 
         oss << "HTTP/1.1 " << _code << " " << _reason << "\r\n";
@@ -221,7 +221,7 @@ namespace taoweb {
 
     // --------------------------------------------------------------------------------------------
 
-    bool socket_server_t::accept(client_t* c) {
+    bool SocketServer::accept(Client* c) {
         SOCKET cfd;
         sockaddr_in addr;
         int len = sizeof(addr);
@@ -238,7 +238,7 @@ namespace taoweb {
         }
     }
 
-    void socket_server_t::start() {
+    void SocketServer::start() {
         _fd = ::socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
         if(_fd == -1)
             throw "socket() error.";

@@ -1,7 +1,5 @@
 #include <string>
 #include <thread>
-#include <atomic>
-#include <chrono>
 #include <iostream>
 
 #include "http_base.h"
@@ -14,26 +12,25 @@ int main()
     init_winsock();
 
     try {
-        socket_server_t server("127.0.0.1", 81);
+        SocketServer server("127.0.0.1", 80);
         server.start();
 
-        std::atomic<bool> running;
-        client_t c;
+        Client c;
         while(server.accept(&c)) {
-            running = false;
-            std::thread([&]() {
+
+            std::cout << "accept: " << c.fd << std::endl;
+
+            auto proc = [](Client c) {
                 try {
-                    http_handler_t handler(c);
-                    running = true;
+                    HTTPHandler handler(c);
                     handler.handle();
                 }
-                catch(const char* err) {
+                catch (const char* err) {
                     std::cerr << err << std::endl;
                 }
-            }).detach();
+            };
 
-            while(!running)
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            std::thread(proc, c).detach();
         }
     }
     catch (const char* err) {

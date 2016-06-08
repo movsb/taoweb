@@ -12,13 +12,13 @@
 
 namespace taoweb {
 
-    bool http_handler_t::handle_dynamic(http_header_t& header) {
+    bool HTTPHandler::handle_dynamic(HTTPHeader& header) {
 
         std::smatch matches;
         std::string uri(header.get_uri());
 
         if(uri == "/about") {
-            http_header_t response_header;
+            HTTPHeader response_header;
             response_header.put_status("200", "OK")
                 .put("Server", "taoweb/1.0")
                 .put("Date", gmtime())
@@ -42,7 +42,7 @@ namespace taoweb {
             return true;
         }
         else if(std::regex_search(uri, matches, std::regex(R"(^/redirect/(.*))"))) {
-            http_header_t response_header;
+            HTTPHeader response_header;
             response_header.put_status("302", "Moved Temporarily")
                 .put("Server", "taoweb/1.0")
                 .put("Date", gmtime())
@@ -59,11 +59,11 @@ namespace taoweb {
         return false;
      }
 
-    bool http_handler_t::handle_command(http_header_t& header) {
+    bool HTTPHandler::handle_command(HTTPHeader& header) {
         std::smatch matches;
         auto uri = header.get_uri();
         if (std::regex_match(uri, matches, std::regex(R"(/cgi-bin/([^/]+\.exe))", std::regex_constants::icase))) {
-            http_header_t response_header;
+            HTTPHeader response_header;
             response_header.put_status("200", "OK")
                 .put("Server", "taoweb/1.0")
                 .put("Date", gmtime())
@@ -75,7 +75,7 @@ namespace taoweb {
             auto cmd = matches[1].str();
             ::system((cmd + " > _tmp").c_str());
 
-            file_system::file_object_t file("_tmp");
+            file_system::FileObject file("_tmp");
             file.open();
 
             file.read_block(1024, [&](const void* buf, int size) {
@@ -91,7 +91,7 @@ namespace taoweb {
         return false;
     }
 
-    bool http_handler_t::handle_cgi_bin(http_header_t& header) {
+    bool HTTPHandler::handle_cgibin(HTTPHeader& header) {
         std::smatch matches;
         auto uri = header.get_uri();
 
@@ -107,7 +107,7 @@ namespace taoweb {
             HANDLE hStdErrWrite = nullptr;
 
             // 当前进程句柄与句柄继承选项
-            HANDLE hPS;
+            HANDLE hProcess;
             DWORD dwDupOpt;
 
             // 被创建的用于提供给的子进程的管道应该被继承，不然没法用
@@ -124,21 +124,21 @@ namespace taoweb {
                 if (!::CreatePipe(&hStdInRead, &hStdInWriteTemp, &sa, 0))
                     throw "CreatePipe() fail";
 
-                hPS = ::GetCurrentProcess();
+                hProcess = ::GetCurrentProcess();
                 dwDupOpt = DUPLICATE_SAME_ACCESS;
 
 
                 // 复制标准写为标准出错，使它们共用
-                if (!::DuplicateHandle(hPS, hStdOutWrite, hPS, &hStdErrWrite, 0, TRUE, dwDupOpt))
+                if (!::DuplicateHandle(hProcess, hStdOutWrite, hProcess, &hStdErrWrite, 0, TRUE, dwDupOpt))
                     throw "DuplicateHandle() fail";
 
                 // 使当前进程的标准写读句柄，标准读写句柄不可继承，不然的话
                 // 子进程继承了句柄退出的时候会导致 ReadFile 被挂起。
 
-                if (!::DuplicateHandle(hPS, hStdOutReadTemp, hPS, &hStdOutRead, 0, FALSE, dwDupOpt))
+                if (!::DuplicateHandle(hProcess, hStdOutReadTemp, hProcess, &hStdOutRead, 0, FALSE, dwDupOpt))
                     throw "DuplicateHandle() fail";
 
-                if (!::DuplicateHandle(hPS, hStdInWriteTemp, hPS, &hStdInWrite, 0, FALSE, dwDupOpt))
+                if (!::DuplicateHandle(hProcess, hStdInWriteTemp, hProcess, &hStdInWrite, 0, FALSE, dwDupOpt))
                     throw "DuplicateHandle() fail";
             }
             catch (...) {
@@ -226,7 +226,7 @@ namespace taoweb {
         };
 
         if(std::regex_match(uri, matches, std::regex(R"(/cgi-bin/([^/]+\.lua))", std::regex_constants::icase))) {
-            auto command = R"(F:\Utilities\Prog\lua\lua52.exe)";
+            auto command = R"(D:\YangTao\tools\lua-5.3\lua53.exe)";
             auto script = file_system::exe_dir() + '/' + matches[1].str();
 
             auto command_line = std::string(R"(")") + command + R"(" ")" + script + '"';
@@ -266,18 +266,18 @@ namespace taoweb {
         return false;
     }
 
-    bool http_handler_t::handle_static(http_header_t& header) {
+    bool HTTPHandler::handle_static(HTTPHeader& header) {
         using string = std::string;
         using namespace file_system;
 
         _l_rewrite:
         
         string path = exe_dir() + '/' + header.get_uri();
-        file_type ty = type(path.c_str());
+        FileType ty = type(path.c_str());
 
-        if(ty == file_type::directory) {
+        if(ty == FileType::directory) {
             if(header.get_uri() != "/" && path.back() != '/') {
-                http_header_t response_header;
+                HTTPHeader response_header;
                 response_header.put_status("301", "Moved Permanently")
                     .put("Server", "taoweb/1.0")
                     .put("Date", gmtime())
@@ -294,7 +294,7 @@ namespace taoweb {
                     goto _l_rewrite;
                 }
                 else {
-                    http_header_t response_header;
+                    HTTPHeader response_header;
                     response_header.put_status("403", "forbidden")
                         .put("Server", "taoweb/1.0")
                         .put("Date", gmtime())
@@ -323,8 +323,8 @@ namespace taoweb {
                 }
             }
         }
-        else if(ty == file_type::not_found) {
-            http_header_t header;
+        else if(ty == FileType::not_found) {
+            HTTPHeader header;
             header.put_status("404", "Not Found")
                 .put("Server", "taoweb/1.0")
                 .put("Date", gmtime())
@@ -351,8 +351,8 @@ R"(<!doctype html>
             send(body);
             close();
         }
-        else if(ty == file_type::access_denied || ty == file_type::error) {
-            http_header_t header;
+        else if(ty == FileType::access_denied || ty == FileType::error) {
+            HTTPHeader header;
             header.put_status("403", "Forbidden")
                 .put("Server", "taoweb/1.0")
                 .put("Date", gmtime())
@@ -379,15 +379,15 @@ R"(<!doctype html>
             send(body);
             close();
         }
-        else if(ty == file_type::file) {
-            file_object_t file(path.c_str());
+        else if(ty == FileType::file) {
+            FileObject file(path.c_str());
 
             file.open();
 
-            stat_t* st = file.stat();
+            Stat* st = file.stat();
 
             if(header.get("If-None-Match") == file.etag()) {
-                http_header_t header;
+                HTTPHeader header;
                 header.put_status("304", "Not Modified")
                     .put("Server", "taoweb/1.0")
                     .put("Date", gmtime())
@@ -398,7 +398,7 @@ R"(<!doctype html>
             }
             else {
 
-                http_header_t header;
+                HTTPHeader header;
                 header.put_status("200", "OK")
                     .put("Server", "taoweb/1.0")
                     .put("Date", gmtime())
@@ -421,7 +421,7 @@ R"(<!doctype html>
         return true;
     }
 
-    void http_handler_t::send(const void* buf, int cb) {
+    void HTTPHandler::send(const void* buf, int cb) {
         int sent = 0;
         static std::string s;
         while(sent < cb) {
@@ -430,7 +430,7 @@ R"(<!doctype html>
                 throw "客户端主动关闭了连接。";
             else if(r == -1) {
                 
-                s = "发送数据时遇到错误。" + std::to_string(_client.fd);
+                s = "发送数据时遇到错误。" + std::to_string(_client.fd) + ": " + std::to_string(::GetLastError());
                 throw s.c_str();
             }
             else
@@ -438,11 +438,11 @@ R"(<!doctype html>
         }
     }
 
-    void http_handler_t::send(const std::string& s) {
+    void HTTPHandler::send(const std::string& s) {
         send(s.c_str(), s.size());
     }
 
-    void http_handler_t::recv(void* buf, int cb) {
+    void HTTPHandler::recv(void* buf, int cb) {
         int recved = 0;
 
         while(recved < cb) {
@@ -456,12 +456,12 @@ R"(<!doctype html>
         }
     }
 
-    void http_handler_t::close() {
+    void HTTPHandler::close() {
         ::closesocket(_client.fd);
     }
 
-    void http_handler_t::handle() {
-        http_header_t header;
+    void HTTPHandler::handle() {
+        HTTPHeader header;
         header.read(_client.fd);
 
         // 连接被提前关闭
@@ -472,7 +472,7 @@ R"(<!doctype html>
         }
 
         handle_dynamic(header)
-            || handle_cgi_bin(header)
+            || handle_cgibin(header)
             || handle_command(header)
             || handle_static(header)
             ;
