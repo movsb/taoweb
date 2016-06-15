@@ -237,6 +237,20 @@ namespace taoweb {
             exec(command_line, env, [&](const char* buf, int size) {
                 send(buf, size);
             });
+
+            close();
+
+            return true;
+        }
+        else if(std::regex_match(uri, matches, std::regex(R"(/cgi-bin/([^/]+\.bat))", std::regex_constants::icase))) {
+            auto script = file_system::exe_dir() + '/' + matches[1].str();
+            auto command_line = '"' + script + '"';
+
+            ssmap_t env;
+
+            exec(command_line, env, [&](const char* buf, int size) {
+                send(buf, size);
+            });
             
             close();
 
