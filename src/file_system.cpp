@@ -121,7 +121,7 @@ namespace file_system {
 
     void FileObject::read_block(int size, std::function<bool(const void* buf, int size)> callback) {
         DWORD dwRead;
-        std::unique_ptr<unsigned char> block(new unsigned char[size]);
+        std::unique_ptr<unsigned char[]> block(new unsigned char[size]);
 
         while(::ReadFile(_handle, block.get(), size, &dwRead, nullptr) && dwRead > 0) {
             if(!callback(block.get(), (int)dwRead)) {

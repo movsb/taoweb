@@ -485,11 +485,12 @@ R"(<!doctype html>
             return;
         }
 
-        handle_dynamic(header)
-            || handle_cgibin(header)
-            || handle_command(header)
-            || handle_static(header)
-            ;
+        0
+        || handle_dynamic(header)
+        || handle_cgibin(header)
+        || handle_command(header)
+        || handle_static(header)
+        ;
     }
 
 }

@@ -18,8 +18,6 @@ int main()
         Client c;
         while(server.accept(&c)) {
 
-            std::cout << "accept: " << c.fd << std::endl;
-
             auto proc = [](Client c) {
                 try {
                     HTTPHandler handler(c);

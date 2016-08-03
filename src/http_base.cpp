@@ -20,7 +20,7 @@ namespace taoweb {
 
         // http://en.cppreference.com/w/c/chrono/strftime
         // e.g.: Sat, 22 Aug 2015 11:48:50 GMT
-        //       5+   3+4+   5+   9+       3   = 29
+        //       5+   3+ 4+  5+   9+       3   = 29
         const char* fmt = "%a, %d %b %Y %H:%M:%S GMT";
         char tstr[30];
 
@@ -184,7 +184,7 @@ namespace taoweb {
                 _ver = matches[1];
                 suffix = matches.suffix().str();
             } else {
-                throw "缺少HTTP协议。";
+                throw "缺少HTTP协议版本。";
             }
 
             // 匹配 请求字段
