@@ -437,15 +437,13 @@ R"(<!doctype html>
 
     void HTTPHandler::send(const void* buf, int cb) {
         int sent = 0;
-        static std::string s;
         while(sent < cb) {
             int r = ::send(_client.fd, (const char*)buf + sent, cb - sent, 0);
             if(r == 0)
                 throw "客户端主动关闭了连接。";
             else if(r == -1) {
-                
-                s = "发送数据时遇到错误。" + std::to_string(_client.fd) + ": " + std::to_string(::GetLastError());
-                throw s.c_str();
+                int i = WSAGetLastError();
+                throw "发送数据时遇到错误。";
             }
             else
                 sent += r;
@@ -471,7 +469,10 @@ R"(<!doctype html>
     }
 
     void HTTPHandler::close() {
-        ::closesocket(_client.fd);
+        if(_client.fd != -1) {
+            ::closesocket(_client.fd);
+            _client.fd = -1;
+        }
     }
 
     void HTTPHandler::handle() {
@@ -484,6 +485,8 @@ R"(<!doctype html>
             close();
             return;
         }
+
+        g_logger.info("%s %s\n", header.get_verb().c_str(), header.get_uri().c_str());
 
         0
         || handle_dynamic(header)

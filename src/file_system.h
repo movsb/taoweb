@@ -10,6 +10,8 @@
 
 #include <Shlwapi.h>
 
+#include "logger.hpp"
+
 namespace taoweb {
 
 namespace file_system {

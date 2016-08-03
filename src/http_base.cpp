@@ -253,6 +253,8 @@ namespace taoweb {
 
         if(::listen(_fd, _backlog) == -1)
             throw "listen() error.";
+
+        g_logger.info("Start server at %s:%d\n", _saddr, _port);
     }
 
     // --------------------------------------------------------------------------------------------

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "logger.hpp"
 #include "http_base.h"
 
 namespace taoweb {
@@ -8,6 +9,10 @@ namespace taoweb {
     public:
         HTTPHandler(Client client)
             : _client(client) {}
+
+        ~HTTPHandler() {
+            close();
+        }
 
         void handle();
 

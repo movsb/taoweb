@@ -11,6 +11,7 @@
 #include <WinSock2.h>
 #include <windows.h>
 
+#include "logger.hpp"
 #include "file_system.h"
 
 namespace taoweb {
@@ -39,6 +40,7 @@ namespace taoweb {
     {
     public:
         SocketServer(const char* addr, uint16_t port, uint16_t backlog = 128) {
+            _saddr = addr;
             _addr.S_un.S_addr = ::inet_addr(addr);
             _port = port;
             _backlog = backlog;
@@ -56,6 +58,7 @@ namespace taoweb {
     protected:
         SOCKET      _fd;
     protected:
+        const char* _saddr;
         in_addr     _addr;
         uint16_t    _port;
         uint16_t    _backlog;

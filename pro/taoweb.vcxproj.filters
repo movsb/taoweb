@@ -30,5 +30,8 @@
     <ClInclude Include="..\src\http_handler.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\logger.hpp">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

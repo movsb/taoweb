@@ -95,6 +95,7 @@
     <ClInclude Include="..\src\file_system.h" />
     <ClInclude Include="..\src\http_base.h" />
     <ClInclude Include="..\src\http_handler.h" />
+    <ClInclude Include="..\src\logger.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
