@@ -35,25 +35,25 @@ namespace taoweb {
             const char* exts;
         } known_mimes[] = {
             // web page
-            {"text/html",           "html\x00htm\x00shtml\x00"},
-            {"text/css",            "css\x00"},
-            {"text/xml",            "xml\x00"},
-            {"text/javascript",     "js\x00"},
-            {"application/json",    "json\x00"},
+            {"text/html",           "html\0htm\0shtml\0"},
+            {"text/css",            "css\0"},
+            {"text/xml",            "xml\0"},
+            {"text/javascript",     "js\0"},
+            {"application/json",    "json\0"},
 
             // normal
-            {"text/plain",          "txt\x00ini\x00"},
+            {"text/plain",          "txt\0ini\0"},
 
             // source code
-            {"text/plain",          "c\x00cc\x00\x00cpp\x00cxx\x00h\x00hpp\x00"},
-            {"text/plain",          "php\x00sh\x00"},
+            {"text/plain",          "c\000cc\000cpp\000cxx\0h\0hpp\0"},
+            {"text/plain",          "php\000sh\000"},
 
             // image / video
-            {"image/gif",           "gif\x00"},
-            {"image/jpeg",          "jpg\x00jpeg\x00"},
-            {"image/png",           "png\x00"},
-            {"image/x-icon",        "ico\x00"},
-            {"image/x-ms-bmp",      "bmp\x00"},
+            {"image/gif",           "gif\0"},
+            {"image/jpeg",          "jpg\0jpeg\0"},
+            {"image/png",           "png\0"},
+            {"image/x-icon",        "ico\0"},
+            {"image/x-ms-bmp",      "bmp\0"},
         };
 
         std::string result;
