@@ -70,7 +70,7 @@ namespace taoweb {
 
         struct string_nocase_compare
         {
-            bool operator()(const string& lhs, const string& rhs) {
+            bool operator()(const string& lhs, const string& rhs) const {
                 return _stricmp(lhs.c_str(), rhs.c_str()) < 0;
             }
         };

@@ -77,7 +77,7 @@ namespace file_system {
     std::string FileObject::etag() {
         if(auto st = stat()) {
             char tagstr[19];
-            ::sprintf(tagstr, R"("%08X%08X")", st->inode); // TODO
+            ::sprintf(tagstr, R"("%08X%08X")", (uint32_t)st->inode, (uint32_t)(st->inode >> 32)); // TODO
             return tagstr;
         } else {
             return "";
